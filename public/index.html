@@ -666,6 +666,87 @@ const V={
   `<h2>Marmeladen</h2>${tb('pm','+ Neuer Eintrag')}${ui.f.pm?`${dl('wl2',['Marmelade','Gelee','Sirup'],db.pm.map(x=>x.what))}<form onsubmit="return addPM(this)"><div class="row">${fl('Datum',`<input type="date" name="date" value="${today()}" required>`)}${fl('Was?',`<input name="what" list="wl2" size="14" required>`)}${fl('Menge Frucht (kg)','<input name="fruit" size="6">')}${fl('Rest vom Vorjahr','<input name="rest" size="10" placeholder="z. B. 247 St">')}</div><div class="row">${SZ.map((z,i)=>fl(z,`<input name="s${i}" size="4" inputmode="numeric" placeholder="Stück">`)).join('')}</div><div class="row"><button>Eintragen</button></div></form>`:''}`+
   (pm.length?`<div style="overflow-x:auto"><table><tr><th>Lotto</th><th>Datum</th><th>Was?</th><th class="n">Frucht kg</th><th>Abgefüllt</th><th>Rest Vorjahr</th><th></th></tr>${pm.map(x=>`<tr><td>${x.no}</td><td>${fmtD(x.date)}</td><td>${esc(x.what)}</td><td class="n">${x.fruit==null?'/':nf(x.fruit).replace(',00','')}</td><td>${Object.entries(x.fills).map(([z,n])=>`${n} St. × ${z}`).join('<br>')}</td><td>${esc(x.rest)||'/'}</td><td><button class="x" onclick="delP('pm','${x.id}')" aria-label="löschen">×</button></td></tr>`).join('')}</table></div><h3>Übersicht Marmeladen und Sirup</h3><table>${t2.map(g=>`<tr><td>${esc(g.what)}</td><td class="n">${g.fr?nf(g.fr).replace(',00','')+' kg Frucht':''}</td><td>${Object.entries(g.z).map(([z,n])=>`<strong>${n}</strong> St. × ${z}`).join('<br>')}</td></tr>`).join('')}</table>`:'<p class="empty">Noch keine Einträge.</p>');
  },
+ help(){
+  const adm=isAdmin(),H=[];
+  const sec=(perm,title,items)=>{if(perm===true||(Array.isArray(perm)?perm.some(k=>can(k)):can(perm)))H.push([title,items.filter(Boolean)])};
+  const L=a=>`<ul>${a.map(x=>`<li>${x}</li>`).join('')}</ul>`;
+  sec(true,'Allgemein',[
+   'Alles, was du einträgst, wird automatisch gespeichert und ist sofort für alle sichtbar. Links unten im Menü steht „✓ Alles gespeichert“. Steht dort „Keine Verbindung“, wird nachgeholt, sobald das Internet wieder da ist. Lass die Seite dann bitte offen.',
+   'Änderungen anderer Personen erscheinen von selbst nach spätestens 15 Sekunden. Während du tippst, aktualisiert sich die Seite nicht.',
+   'Am Handy gibt es unten eine Leiste mit den wichtigsten Punkten. Alles andere findest du unter <strong>Mehr</strong>.',
+   'Dein Passwort änderst du, indem du links unten auf deinen Namen tippst („Mein Konto“). Dort meldest du dich auch ab.',
+   'Auf der <strong>Startseite</strong> siehst du, was ansteht: Zahlen zu offenen Arbeiten und Terminen, die nächsten Termine und die offenen Arbeiten nach Priorität.'
+  ]);
+  sec(['tasks'],'Arbeiten (Hof und Betrieb)',[
+   'Neue Arbeit: Text eintragen, Priorität wählen, optional ein <strong>Datum</strong> und eine <strong>Wiederholung</strong> (täglich, wöchentlich, monatlich) und <strong>Hinzufügen</strong> drücken.',
+   'Mit dem Kästchen hakst du eine Arbeit ab. Wiederkehrende Arbeiten sind danach nicht „erledigt“, sondern springen zum nächsten Termin. Darunter steht, wann sie zuletzt erledigt wurden.',
+   'Datum, Wiederholung und Priorität änderst du direkt in der Zeile. Mit ✎ änderst du den Text, mit × löschst du die Arbeit.',
+   adm?'Als Admin wählst du bei jeder Arbeit unter <strong>Zuständig</strong> eine Person aus.':'Siehst du bei einer Arbeit „Zuständig: …“, ist sie dieser Person zugeteilt. Mit dem Filter „Nur meine“ siehst du nur deine Arbeiten.',
+   'Von selbst erscheinen hier außerdem: Termine aus dem Kalender (rot; ab 2 Wochen vorher mit mittlerer, ab 2 Tagen vorher mit hoher Priorität)'+(can('orders')?' und Pakete, die zu versenden sind (hohe Priorität)':'')+'.'
+  ]);
+  sec(['cal'],'Kalender',[
+   'Der Kalender zeigt alles mit Datum: <span style="color:var(--red)"><strong>rot</strong></span> Termine, <strong style="color:var(--green)">grün</strong> Arbeiten (auch wiederkehrende), <strong style="color:#2c6aa0">blau</strong> Arbeiten für Dritte, <strong style="color:#7a4b00">orange</strong> Bestellungen mit Abholung oder Lieferung.',
+   'Tippe auf einen Tag, dann siehst du darunter alles an diesem Tag. Mit ‹ › wechselst du den Monat, „Heute“ springt zurück.',
+   'Neuer Termin: <strong>+ Neuer Termin</strong>, Titel, Datum und Uhrzeit eintragen. Mit × löschst du einen Termin. Arbeiten kannst du hier direkt abhaken, der Pfeil → öffnet sie an ihrer Stelle.'
+  ]);
+  sec(['orders'],'Bestellungen',[
+   '<strong>+ Neue Bestellung</strong>: Name eintragen. Bekannte Kunden werden vorgeschlagen und füllen E-Mail, Telefon und Adresse. Neue Kunden werden automatisch in die Kundenliste übernommen.',
+   'Wähle die Kategorie (Frischfleisch, Pakete, Hofladen oder mit + eine eigene) und optional das Datum für <strong>Abholung / Lieferung</strong>, dann erscheint die Bestellung im Kalender.',
+   'Bei „Pakete“ trägst du Länge, Breite, Höhe und Gewicht ein und hakst „Paket ist fertig“. Dann erscheint „Paket versenden“ ganz oben bei den Arbeiten.',
+   'Produkt wählen, Menge (kg oder Stück) <em>oder</em> direkt den Gesamtpreis eintragen und <strong>Hinzufügen</strong>. Auch Mischpakete stehen zur Auswahl, sobald sie einen Preis haben. Zum Schluss <strong>Bestellung speichern</strong>.',
+   'In der Liste („Offen“ / „Erledigt“) schließt du eine Bestellung mit <strong>Als erledigt markieren</strong> ab'+(can('inv')?'. Sie erscheint dann unter Rechnungen bei „Noch zu schreiben“. Mit <strong>Erledigt und bezahlt</strong> geht sie direkt zu „Bezahlt“.':'. Mit <strong>Erledigt und bezahlt</strong> gilt sie auch als bezahlt.'),
+   'Das Abholdatum kannst du bei jeder Bestellung nachträglich ändern. „Wieder öffnen“ macht eine erledigte Bestellung wieder offen.'
+  ]);
+  sec(['products'],'Produkte',[
+   'Die Produkte sind in Kategorien geordnet. Tippe auf eine Kategorie zum Aufklappen. Oben kannst du suchen.',
+   'Tippe auf das Foto-Feld, um ein Foto zu wählen. Es wird automatisch verkleinert.',
+   '<strong>Verfügbar</strong>: erscheint in Bestellungen. <strong>Nicht verfügbar</strong> und <strong>Ausgeblendet</strong>: erscheint dort nicht, bleibt aber in der Liste.',
+   '<strong>+ Produkt hinzufügen</strong> in einer Kategorie und <strong>+ Neue Kategorie</strong> legen Neues an.',
+   can('prices')?'Den Preis trägst du direkt ein. Daneben steht, wann er zuletzt geändert wurde.':'Die Preise siehst du hier, ändern darf sie nur, wer das Recht „Preise ändern“ hat.',
+   adm?'Mit dem × neben einem Produkt entfernst du es (nur Admins).':''
+  ]);
+  sec(['customers'],'Kunden',[
+   '<strong>+ Neuer Kunde</strong> legt einen Kunden an. Name, E-Mail, Telefon, Adresse und Notiz kannst du direkt in der Liste ändern. Mit × löschst du einen Kunden.',
+   'Kunden aus Bestellungen werden automatisch angelegt.'
+  ]);
+  sec(['ext'],'Arbeiten für Dritte',[
+   'Du findest sie unter <strong>Arbeiten</strong> im Reiter <strong>Für Dritte</strong>'+(can('tasks')?'':' (ganz oben)')+'.',
+   'Mit <strong>Kunde aus der Liste öffnen</strong> oder <strong>+ Neuer Kunde</strong> legst du fest, für wen du arbeitest.',
+   'Beim Kunden: <strong>Neue Arbeit eintragen</strong>, beschreiben, was getan wurde, Datum wählen, bei den eingesetzten Maschinen oder bei Handarbeit die Stunden eintragen und <strong>Arbeit speichern</strong>. Der Preis ergibt sich aus der Preisliste.',
+   'Mit „Verschieben nach …“ hängst du eine Arbeit an einen anderen Kunden. Arbeiten erscheinen blau im Kalender.',
+   can('prices')?'Die Preisliste (Grundpreise) kannst du ändern und mit „+ Leistung hinzufügen“ ergänzen.':'Die Preisliste siehst du nur an. Ändern darf sie, wer das Recht „Preise ändern“ hat.',
+   can('inv')?'<strong>Preise dieses Kunden</strong> ändern, gilt nur für diesen Kunden und wird zur Sicherheit doppelt bestätigt.':'',
+   can('inv')?'Mehrere Arbeiten fasst du mit den Häkchen und <strong>Ausgewählte aufnehmen</strong> zu einem <strong>Kostenvoranschlag</strong> zusammen. Nach „Bestätigen“ ist er fest, du kannst ihn als PDF speichern. Jede Arbeit erscheint außerdem einzeln unter Rechnungen.':'Abgerechnet wird später von jemandem mit dem Recht „Rechnungen“. Sobald eine Arbeit verrechnet ist, siehst du sie hier nicht mehr.'
+  ]);
+  sec(['inv'],'Rechnungen',[
+   'Jede Rechnung durchläuft drei Stufen: <strong>Noch zu schreiben</strong> → mit „Rechnung geschrieben“ → <strong>Noch zu kassieren</strong> → mit „Als bezahlt markieren“ → <strong>Bezahlt</strong>. Mit den anderen Knöpfen gehst du einen Schritt zurück.',
+   'Hier landen erledigte Bestellungen und alle Arbeiten für Dritte (oder deren Kostenvoranschläge).',
+   '<strong>Als PDF speichern</strong> öffnet den Druckdialog. Dort wählst du als Drucker „Als PDF speichern“.',
+   'Auf der Startseite zählen zwei Kästchen, wie viele Rechnungen noch zu schreiben und zu kassieren sind.'
+  ]);
+  sec(['recipes'],'Rezepte',[
+   'Oben legst du ein neues Rezept an: Gruppe wählen (zum Beispiel Salami, Speck oder Marmeladen), Name, Zutaten (eine pro Zeile) und Zubereitung eintragen, speichern.',
+   'Darunter stehen alle Rezepte nach Gruppen. Tippe ein Rezept an, um es zu lesen, zu bearbeiten oder zu löschen.'
+  ]);
+  sec(['mix'],'Mischpakete',[
+   'Für jede Fleischsorte (Rind, Hirsch, Reh, Truthahn, Schwein) gibt es eine Tabelle: Wie viel kg von welchem Fleischteil kommen in welche Paketgröße. Zahlen ändern sich direkt, die Summe rechnet mit.',
+   'Mit <strong>+ Größe</strong> und <strong>+ Fleischteil</strong> erweiterst du die Tabelle.',
+   can('prices')?'Die Spalte <strong>Preis €</strong> ist der Preis pro Paket. Pakete mit Preis kann man unter Bestellungen auswählen.':'Die Spalte „Preis €“ ist der Preis pro Paket. Ändern darf ihn, wer das Recht „Preise ändern“ hat.'
+  ]);
+  sec(['prod'],'Produktionslisten',[
+   '<strong>Fleisch</strong>: „+ Neuer Eintrag“, Datum, was hergestellt wurde, Menge in kg und die Daten der Rohware (Rind-, Wild-, Magerfleisch, Wurstspeck) eintragen. Die Lotto-Nummer vergibt die App selbst. Darunter siehst du die Summen je Produkt.',
+   '<strong>Marmeladen</strong>: Datum, was, Menge Frucht, Rest vom Vorjahr und die Stückzahl je Glasgröße eintragen. Auch hier wird die Lotto-Nummer automatisch vergeben und es gibt eine Übersicht.',
+   'Mit × löschst du einen Eintrag.'
+  ]);
+  sec(adm,'Einstellungen (nur Admin)',[
+   '<strong>Benutzer</strong>: neue Benutzer anlegen (Passwort mindestens 8 Zeichen), Namen ändern, Passwort neu setzen, Rolle wechseln oder löschen. Es muss immer mindestens einen Admin geben.',
+   '<strong>Rechte</strong>: Für jeden Benutzer legst du mit Haken fest, was er sehen und tun darf. Änderungen gelten sofort. „Auf Standard setzen“ stellt die Grundeinstellung wieder her: alles außer „Preise ändern“ und „Rechnungen“. Admins dürfen immer alles.',
+   '<strong>Export</strong>: Daten als Excel-Datei oder PDF herunterladen.',
+   '<strong>Löschen</strong>: Rechnungen, Bestellungen, erledigte Arbeiten und vergangene Termine endgültig löschen. Rechnungsnummern werden danach wieder vergeben.'
+  ]);
+  const mine=adm?'Du bist <strong>Admin</strong> und darfst alles.':'Du darfst: '+PERM_L.filter(p=>can(p[0])).map(p=>p[1]).join(', ')+'.';
+  return `<h1>Hilfe</h1><div class="box"><p style="margin-top:0">Angemeldet als <strong>${esc(me.username)}</strong>. ${mine}</p><p style="margin-bottom:0"><small>Hier steht nur, was du in der App auch tatsächlich siehst. Fehlt dir ein Menüpunkt, den du brauchst, frag den Admin.</small></p></div>`+H.map(([t,a],i)=>det('h'+i,esc(t),L(a))).join('');
+ },
  users(){ui.st='users';return V.settings()},
  settings(){
   const st=ui.st||'users',T=[['users','Benutzer'],['rights','Rechte'],['export','Export'],['clean','Löschen']];
@@ -703,7 +784,7 @@ const NAVG=[
  {g:'Tagesgeschäft',items:[['tasks','Arbeiten'],['cal','Kalender']]},
  {g:'Verkauf',items:[['orders','Bestellungen'],['products','Produkte'],['customers','Kunden'],['inv','Rechnungen']]},
  {g:'Hof',items:[['rec','Rezepte'],['mix','Mischpakete'],['prod','Produktionslisten']]},
- {g:'',items:[['settings','Einstellungen']]}
+ {g:'',items:[['help','Hilfe'],['settings','Einstellungen']]}
 ];
 const NAV=NAVG.flatMap(g=>g.items);
 const BAR=[['home','Start'],['tasks','Arbeiten'],['cal','Kalender'],['orders','Bestellungen']];
