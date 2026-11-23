@@ -21,6 +21,7 @@ const SCHEMA = [
   `CREATE TABLE IF NOT EXISTS items(sec TEXT NOT NULL, id TEXT NOT NULL, data TEXT, upd INTEGER NOT NULL, del INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(sec,id))`,
   `CREATE INDEX IF NOT EXISTS items_upd ON items(upd)`,
   `CREATE TABLE IF NOT EXISTS counters(k TEXT PRIMARY KEY, v INTEGER NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS nums(k TEXT NOT NULL, n INTEGER NOT NULL, PRIMARY KEY(k,n))`,
   `CREATE TABLE IF NOT EXISTS fails(k TEXT NOT NULL, ts INTEGER NOT NULL)`,
 ];
 let ready = null;
@@ -192,8 +193,20 @@ async function handle(req, env, url) {
     if (k !== 'rn' && k !== 'qn') return err('Ungültig.');
     if (k === 'qn' && !perms.inv) return err('Dafür fehlt die Berechtigung.', 403);
     if (k === 'rn' && !perms.orders && !perms.inv) return err('Dafür fehlt die Berechtigung.', 403);
+    const g = await env.DB.prepare('DELETE FROM nums WHERE k=? AND n=(SELECT MIN(n) FROM nums WHERE k=?) RETURNING n').bind(k, k).first();
+    if (g) return json({ n: g.n });
     const r = await env.DB.prepare('INSERT INTO counters(k,v) VALUES(?,1) ON CONFLICT(k) DO UPDATE SET v=v+1 RETURNING v').bind(k).first();
     return json({ n: r.v });
+  }
+
+  if (path === '/api/free' && method === 'POST') {
+    if (!admin) return err('Dafür fehlt die Berechtigung.', 403);
+    const k = body.k, n = parseInt(body.n);
+    if ((k !== 'rn' && k !== 'qn') || !(n >= 1)) return err('Ungültig.');
+    const c = await env.DB.prepare('SELECT v FROM counters WHERE k=?').bind(k).first();
+    if (!c || n > c.v) return err('Diese Nummer wurde nie vergeben.');
+    await env.DB.prepare('INSERT OR IGNORE INTO nums(k,n) VALUES(?,?)').bind(k, n).run();
+    return json({ ok: true });
   }
 
   if (path === '/api/password' && method === 'POST') {
@@ -222,9 +235,16 @@ async function handle(req, env, url) {
       catch { return err('Diesen Benutzernamen gibt es schon.', 409); }
     }
     if (id && method === 'PATCH') {
-      const t = await env.DB.prepare('SELECT id,role FROM users WHERE id=?').bind(id).first();
+      const t = await env.DB.prepare('SELECT id,role,username FROM users WHERE id=?').bind(id).first();
       if (!t) return err('Benutzer nicht gefunden.', 404);
       const st = [];
+      if (body.username !== undefined) {
+        if (!validName(body.username)) return err('Benutzername: 3 bis 32 Zeichen (Buchstaben, Zahlen, . _ -).');
+        const dup = await env.DB.prepare('SELECT id FROM users WHERE username=? AND id<>?').bind(body.username, id).first();
+        if (dup) return err('Diesen Benutzernamen gibt es schon.', 409);
+        st.push(env.DB.prepare('UPDATE users SET username=? WHERE id=?').bind(body.username, id));
+        st.push(env.DB.prepare("UPDATE items SET data=json_set(data,'$.who',?),upd=? WHERE sec='tasks' AND del=0 AND json_extract(data,'$.who')=?").bind(body.username, Date.now(), t.username));
+      }
       if (body.role !== undefined) {
         if (body.role !== 'admin' && body.role !== 'user') return err('Ungültige Rolle.');
         if (t.role === 'admin' && body.role !== 'admin') {
