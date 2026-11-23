@@ -405,8 +405,16 @@ function suggest(el){
  const c=db.customers.find(c=>[c.name,c.email,c.tel].some(x=>x&&x.toLowerCase()===v));
  if(!c)return;readForm();Object.assign(ui.d,{name:c.name,email:c.email||'',tel:c.tel||'',adr:c.adr||''});R();
 }
+function mixOpts(){
+ const o=[];db.mix.forEach(t=>t.rows.forEach(r=>{if(r.price!=null)o.push(`<option value="mix:${esc(t.name)}|${esc(r.l)}">Mischpaket ${esc(t.name)} ${esc(r.l)} (${nf(r.price)} €/Paket)</option>`)}));
+ return o.length?`<optgroup label="Mischpakete">${o.join('')}</optgroup>`:'';
+}
+function findProd(v){
+ if(v.startsWith('mix:')){const [n,l]=v.slice(4).split('|'),t=db.mix.find(x=>x.name===n),r=t&&t.rows.find(x=>x.l===l);return r&&r.price!=null?{name:'Mischpaket '+n+' '+l,unit:'Stk',price:r.price}:null}
+ return db.products.find(x=>x.id===v);
+}
 function addItem(){
- readForm();const p=db.products.find(x=>x.id===$('#o_prod').value);if(!p)return;
+ readForm();const p=findProd($('#o_prod').value);if(!p)return;
  const q=num($('#o_qty').value);let t=num($('#o_tot').value);
  if(isNaN(t)&&p.price!=null&&!isNaN(q))t=Math.round(q*p.price*100)/100;
  if(isNaN(t)||isNaN(q)){alert('Bitte Menge ('+p.unit+') eingeben, oder direkt den Gesamtpreis.');return}
@@ -523,6 +531,7 @@ function editRec(id){ui.re=id;R();scrollTo(0,0)}
 function delRec(id){if(!confirm('Rezept löschen?'))return;db.recipes=db.recipes.filter(r=>r.id!==id);save();R()}
 /* ---------- Mischpakete ---------- */
 function setMix(t,r,c,v){const n=num(v);db.mix[t].rows[r].v[c]=isNaN(n)?null:n;save();R()}
+function setMixPrice(t,r,v){const n=num(v);db.mix[t].rows[r].price=isNaN(n)?null:n;save();R()}
 function addMixRow(t){const l=prompt('Neue Paketgröße (z. B. 12 kg):');if(!l)return;db.mix[t].rows.push({l:l.trim(),v:db.mix[t].cols.map(()=>null)});save();R()}
 function addMixCol(t){const c=prompt('Neuer Fleischteil (z. B. Hals):');if(!c)return;db.mix[t].cols.push(c.trim());db.mix[t].rows.forEach(r=>r.v.push(null));save();R()}
 /* ---------- Rechnungen ---------- */
@@ -584,7 +593,7 @@ const V={
   const form=`<form onsubmit="return false"><div class="row"><input id="o_name" list="cl" placeholder="Name" value="${esc(d.name)}" onchange="suggest(this)"><datalist id="cl">${db.customers.map(c=>`<option value="${esc(c.name)}">`).join('')}</datalist><datalist id="cl_e">${db.customers.filter(c=>c.email).map(c=>`<option value="${esc(c.email)}">`).join('')}</datalist><input id="o_email" list="cl_e" placeholder="E-Mail" value="${esc(d.email)}" onchange="suggest(this)"><datalist id="cl_t">${db.customers.filter(c=>c.tel).map(c=>`<option value="${esc(c.tel)}">`).join('')}</datalist><input id="o_tel" list="cl_t" placeholder="Telefon" value="${esc(d.tel)}" onchange="suggest(this)"><input id="o_adr" placeholder="Adresse" value="${esc(d.adr)}" style="flex:1;min-width:12rem"><label class="fl">Abholung / Lieferung <input type="date" id="o_due" value="${esc(d.due||'')}"></label></div>`+
   `<div class="row"><select id="o_cat" onchange="readForm();R()">${db.ocats.map(c=>`<option ${c===d.cat?'selected':''}>${esc(c)}</option>`).join('')}</select><button type="button" class="ghost" onclick="addOCat()" aria-label="Unterteilung hinzufügen">+</button></div>`+
   (d.cat==='Pakete'?`<div class="row"><input id="o_l" size="5" placeholder="Länge cm" value="${esc(d.l)}"><input id="o_b" size="5" placeholder="Breite cm" value="${esc(d.b)}"><input id="o_h" size="5" placeholder="Höhe cm" value="${esc(d.h)}"><input id="o_w" size="5" placeholder="Gewicht kg" value="${esc(d.w)}"><label><input type="checkbox" id="o_f" ${d.fertig?'checked':''}> Paket ist fertig</label></div>`:'')+
-  `<div class="row"><select id="o_prod">${cats.map(c=>`<optgroup label="${esc(c)}">${av.filter(p=>p.cat===c).map(p=>`<option value="${p.id}">${esc(p.name)} (${p.price==null?'auf Anfrage':nf(p.price)+' €/'+p.unit})</option>`).join('')}</optgroup>`).join('')}</select><input id="o_qty" size="6" placeholder="kg / Stück"><input id="o_tot" size="8" placeholder="oder Gesamtpreis €"><button type="button" onclick="addItem()">Hinzufügen</button></div>`+
+  `<div class="row"><select id="o_prod">${cats.map(c=>`<optgroup label="${esc(c)}">${av.filter(p=>p.cat===c).map(p=>`<option value="${p.id}">${esc(p.name)} (${p.price==null?'auf Anfrage':nf(p.price)+' €/'+p.unit})</option>`).join('')}</optgroup>`).join('')}${mixOpts()}</select><input id="o_qty" size="6" placeholder="kg / Stück"><input id="o_tot" size="8" placeholder="oder Gesamtpreis €"><button type="button" onclick="addItem()">Hinzufügen</button></div>`+
   (d.items.length?itemsTable(d.items,true):'')+`<div class="row"><button type="button" onclick="saveOrder()">Bestellung speichern</button></div></form>`;
   const n1=db.orders.filter(o=>!o.done).length,n2=db.orders.length-n1,list=db.orders.filter(o=>ui.of==='done'?o.done:!o.done).map(o=>`<div class="box ${o.done?'done-o':''}"><div class="row"><strong>${esc(o.name)}</strong><small>${esc(o.cat)}, ${fmtD(o.date)}</small><label class="fl">Abholung / Lieferung <input type="date" class="dt" value="${esc(o.due||'')}" onchange="setO('${o.id}','due',this.value)"></label><span style="flex:1"></span>${o.done?`<button class="ghost" onclick="doneO('${o.id}')">Wieder öffnen</button>`:`<button class="ghost" onclick="doneO('${o.id}')">Als erledigt markieren</button><button class="ghost" onclick="doneO('${o.id}',true)">Erledigt und bezahlt</button>`}<button class="x" onclick="del('o','${o.id}')" aria-label="löschen">×</button></div><small>${[o.email,o.tel,o.adr].filter(Boolean).map(esc).join(', ')}</small>`+
    (o.cat==='Pakete'?`<small>Paket: ${esc(o.l)}×${esc(o.b)}×${esc(o.h)} cm, ${esc(o.w)} kg <label><input type="checkbox" ${o.fertig?'checked':''} onchange="setO('${o.id}','fertig',this.checked)"> fertig</label></small>`:'')+itemsTable(o.items)+`</div>`).join('');
@@ -613,7 +622,7 @@ const V={
   return `<h1>Rezepte</h1><h2>${e?'Rezept bearbeiten':'Neues Rezept'}</h2>${form}${list}`;
  },
  mix(){
-  return `<h1>Mischpakete</h1><p><small>Mengen in kg je Paketgröße. Die Zahlen lassen sich direkt ändern, die Summe rechnet mit.</small></p>`+db.mix.map((t,ti)=>`<h2>Mischpaket ${esc(t.name)}</h2>`+(t.cols.length?`<div style="overflow-x:auto"><table><tr><th>Paket</th>${t.cols.map(c=>`<th class="n">${esc(c)}</th>`).join('')}<th class="n">Summe</th></tr>${t.rows.map((r,ri)=>`<tr><td>${esc(r.l)}</td>${t.cols.map((c,ci)=>`<td class="n"><input class="pr" style="width:4.2rem" value="${r.v[ci]==null?'':nf(r.v[ci])}" onchange="setMix(${ti},${ri},${ci},this.value)" aria-label="${esc(t.name+' '+r.l+' '+c)}"></td>`).join('')}<td class="n"><strong>${nf(r.v.reduce((a,x)=>a+(x||0),0))}</strong></td></tr>`).join('')}</table></div>`:'<p class="empty">Noch keine Angaben. Mit „+ Fleischteil“ und „+ Größe“ aufbauen.</p>')+`<div class="row"><button class="ghost" onclick="addMixRow(${ti})">+ Größe</button><button class="ghost" onclick="addMixCol(${ti})">+ Fleischteil</button></div>`).join('');
+  return `<h1>Mischpakete</h1><p><small>Mengen in kg je Paketgröße. Die Zahlen lassen sich direkt ändern, die Summe rechnet mit. Mit Preis (pro Paket) kann man das Paket unter „Bestellungen“ auswählen.</small></p>`+db.mix.map((t,ti)=>`<h2>Mischpaket ${esc(t.name)}</h2>`+(t.cols.length?`<div style="overflow-x:auto"><table><tr><th>Paket</th>${t.cols.map(c=>`<th class="n">${esc(c)}</th>`).join('')}<th class="n">Summe</th><th class="n">Preis €</th></tr>${t.rows.map((r,ri)=>`<tr><td>${esc(r.l)}</td>${t.cols.map((c,ci)=>`<td class="n"><input class="pr" style="width:4.2rem" value="${r.v[ci]==null?'':nf(r.v[ci])}" onchange="setMix(${ti},${ri},${ci},this.value)" aria-label="${esc(t.name+' '+r.l+' '+c)}"></td>`).join('')}<td class="n"><strong>${nf(r.v.reduce((a,x)=>a+(x||0),0))}</strong></td><td class="n"><input class="pr" style="width:5rem" value="${r.price==null?'':nf(r.price)}" placeholder="Preis" onchange="setMixPrice(${ti},${ri},this.value)" aria-label="Preis ${esc(t.name+' '+r.l)}" ${can('prices')?'':'disabled'}></td></tr>`).join('')}</table></div>`:'<p class="empty">Noch keine Angaben. Mit „+ Fleischteil“ und „+ Größe“ aufbauen.</p>')+`<div class="row"><button class="ghost" onclick="addMixRow(${ti})">+ Größe</button><button class="ghost" onclick="addMixCol(${ti})">+ Fleischteil</button></div>`).join('');
  },
  inv(){
   const od=db.orders.filter(o=>o.done),g=st=>od.filter(o=>(o.inv||'schreiben')===st),X=extInv();

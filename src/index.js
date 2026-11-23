@@ -2,8 +2,8 @@
 const SECS = ['tasks','events','products','customers','orders','ext','kvs','prices','recipes','pf','pm','mix','meta'];
 const PERMS = ['tasks','cal','orders','products','prices','customers','ext','recipes','mix','prod','inv'];
 const DEFAULT_PERMS = { tasks:1, cal:1, orders:1, products:1, prices:0, customers:1, ext:1, recipes:1, mix:1, prod:1, inv:0 };
-const READ = { tasks:['tasks'], events:['cal'], customers:['customers','orders','ext','inv'], orders:['orders','inv'], ext:['ext','inv'], prices:['ext','prices','inv'], kvs:['inv'], recipes:['recipes'], mix:['mix'], pf:['prod'], pm:['prod'] };
-const WRITE = { ...READ, products:['products'], prices:['prices'] };
+const READ = { tasks:['tasks'], events:['cal'], customers:['customers','orders','ext','inv'], orders:['orders','inv'], ext:['ext','inv'], prices:['ext','prices','inv'], kvs:['inv'], recipes:['recipes'], mix:['mix','orders'], pf:['prod'], pm:['prod'] };
+const WRITE = { ...READ, products:['products'], prices:['prices'], mix:['mix'] };
 function getPerms(role, raw) {
   const p = {};
   let o = {};
@@ -156,6 +156,11 @@ async function handle(req, env, url) {
         if (o.sec === 'products' && !perms.prices && !admin) {
           const old = await env.DB.prepare('SELECT data FROM items WHERE sec=? AND id=? AND del=0').bind('products', o.id).first();
           if (old && old.data) { const p = JSON.parse(old.data); d.price = p.price; d.changed = p.changed; d.unit = p.unit; }
+        }
+        if (o.sec === 'mix' && !perms.prices && !admin) {
+          const old = await env.DB.prepare('SELECT data FROM items WHERE sec=? AND id=? AND del=0').bind('mix', o.id).first();
+          const op = new Map(((old && old.data ? JSON.parse(old.data).rows : null) || []).map(r => [r.l, r.price]));
+          if (Array.isArray(d.rows)) d.rows = d.rows.map(r => ({ ...r, price: op.has(r.l) ? op.get(r.l) : null }));
         }
         if (o.sec === 'ext' && !admin && !perms.inv) {
           const old = await env.DB.prepare('SELECT data FROM items WHERE sec=? AND id=? AND del=0').bind('ext', o.id).first();
