@@ -186,6 +186,7 @@ async function loadAll(){
  db=emptyDb();synced=new Map();applyItems(r.items);seq=r.now;
  if(!r.items.length&&isAdmin())db=Object.assign(emptyDb(),seed());
  else if(!db.mix.length&&can('mix'))db.mix=mixData();
+ if(isAdmin())db.ext=db.ext.filter(e=>e.jobs.length||db.customers.some(c=>c.id===e.cid));
  sortAll();
  if(snap().size!==synced.size)save();
 }
@@ -367,7 +368,9 @@ function setRep(id,v){const t=db.tasks.find(x=>x.id===id);t.rep=v;if(v&&!t.date)
 function setWho(id,v){db.tasks.find(x=>x.id===id).who=v;save();R()}
 function setP(id,p){db.tasks.find(x=>x.id===id).p=+p;save();R()}
 function del(k,id){
+ if(k==='c'){const e=db.ext.find(x=>x.cid===id);if(e&&e.jobs.length){alert('Für diesen Kunden sind noch Arbeiten für Dritte eingetragen. Lösche zuerst diese Arbeiten.');return}}
  if(!confirm('Wirklich löschen?'))return;
+ if(k==='c'&&isAdmin()){db.kvs=db.kvs.filter(q=>{const e=db.ext.find(x=>x.id===q.eid);return !(e&&e.cid===id)});db.ext=db.ext.filter(x=>x.cid!==id)}
  const m={t:'tasks',e:'events',c:'customers',o:'orders'}[k];db[m]=db[m].filter(x=>x.id!==id);save();R();
 }
 function addTask(f){const t=f.text.value.trim();if(!t)return false;let d=f.date.value||'',r=f.rep.value;if(r&&!d)d=today();const o={id:uid(),text:t,p:+f.p.value,done:false,date:d,rep:d?r:'',dom:d?+d.slice(8):0};if(f.who&&f.who.value)o.who=f.who.value;db.tasks.push(o);if(d){ui.cm=d.slice(0,7);ui.sel=d}save();R();return false}
@@ -487,7 +490,7 @@ function pdfX(kind,id){
  if(kind==='k')return pdfKV(id);
  let e,j;db.ext.forEach(x=>x.jobs.forEach(y=>{if(y.id===id){e=x;j=y}}));if(!j)return;
  const c=db.customers.find(x=>x.id===e.cid)||{};
- $('#pr').innerHTML=prHead()+`<h1>Rechnung</h1><p>${fmtD(j.date)}<br>${esc(c.name)}<br>${esc(c.adr||'')}</p><table><tr><td colspan="3"><strong>${esc(j.what)}</strong></td></tr>`+j.lines.map(l=>`<tr><td>${esc(l.name)}</td><td class="n">${nf(l.h)} ${l.unit} × ${nf(l.pr)} €</td><td class="n">${nf(l.h*l.pr)} €</td></tr>`).join('')+`<tr><td colspan="2" class="sum">Gesamt</td><td class="n sum">${nf(jt(j))} €</td></tr></table><p>${jst(j)==='bezahlt'?'Bezahlt':'Noch nicht bezahlt'}</p>`;
+ $('#pr').innerHTML=prHead()+`<h1>Rechnung</h1><p>${fmtD(j.date)}<br>${esc(c.name)}<br>${esc(c.adr||'')}${c.tel||c.email?'<br>'+[c.tel,c.email].filter(Boolean).map(esc).join(' · '):''}</p><table><tr><td colspan="3"><strong>${esc(j.what)}</strong></td></tr>`+j.lines.map(l=>`<tr><td>${esc(l.name)}</td><td class="n">${nf(l.h)} ${l.unit} × ${nf(l.pr)} €</td><td class="n">${nf(l.h*l.pr)} €</td></tr>`).join('')+`<tr><td colspan="2" class="sum">Gesamt</td><td class="n sum">${nf(jt(j))} €</td></tr></table><p>${jst(j)==='bezahlt'?'Bezahlt':'Noch nicht bezahlt'}</p>`;
  document.title='Rechnung '+(c.name||'');printWhenReady();
 }
 const kn=(e,p)=>e.prices[p.id]!=null?e.prices[p.id]:p.price;
@@ -504,6 +507,13 @@ function renCat(i){const c=[...new Set(db.prices.map(p=>p.cat))][i],n=prompt('Ne
 function addSvcCat(){const c=prompt('Name der neuen Kategorie:');if(!c||!c.trim())return;const n=prompt('Erste Leistung in '+c.trim()+':');if(!n||!n.trim())return;db.prices.push({id:uid(),cat:c.trim(),name:n.trim(),unit:prompt('Einheit (z. B. Std, m³):','Std')||'Std',price:null,changed:null});save();R()}
 function closeExt(eid){const e=fe(eid);if(e.jobs.length){alert('Bei diesem Kunden sind noch Arbeiten eingetragen. Lösche zuerst die Arbeiten (mit × oder unter Einstellungen → Löschen).');return}if(!confirm('„'+cn(e)+'“ aus der Liste „Arbeiten für Dritte“ entfernen? Der Kunde bleibt unter „Kunden“ erhalten.'))return;db.ext=db.ext.filter(x=>x.id!==eid);db.kvs=db.kvs.filter(k=>k.eid!==eid);save();R()}
 function openExt(){const s=$('#x_new');if(!s.value)return;db.ext.push({id:uid(),cid:s.value,prices:{},jobs:[]});save();R()}
+function addExtCust(f){
+ const n=f.name.value.trim();if(!n)return false;
+ let c=db.customers.find(x=>x.name.toLowerCase()===n.toLowerCase());
+ if(!c){c={id:uid(),name:n,email:f.email.value.trim(),tel:f.tel.value.trim(),adr:f.adr.value.trim(),note:f.note.value.trim()};db.customers.push(c)}
+ if(db.ext.some(x=>x.cid===c.id)){alert('„'+c.name+'“ ist hier schon geöffnet.');return false}
+ db.ext.push({id:uid(),cid:c.id,prices:{},jobs:[]});ui.f.xn=false;save();R();return false;
+}
 function newExt(){const n=prompt('Name des neuen Kunden:');if(!n)return;const c={id:uid(),name:n.trim(),email:'',tel:'',adr:'',note:''};db.customers.push(c);db.ext.push({id:uid(),cid:c.id,prices:{},jobs:[]});save();R()}
 function setCP(eid,pid,v){const e=fe(eid),p=db.prices.find(x=>x.id===pid),n=num(v);
  if(isNaN(n)||n===kn(e,p)){R();return}
@@ -529,18 +539,19 @@ function okKV(id){const k=db.kvs.find(x=>x.id===id);if(!conf2(k.no+' bestätigen
 function paidKV(id){const k=db.kvs.find(x=>x.id===id);setXInv('k',id,kst(k)==='bezahlt'?'kassieren':'bezahlt')}
 function pdfKV(id){
  const k=db.kvs.find(x=>x.id===id),e=fe(k.eid),c=db.customers.find(x=>x.id===e.cid)||{},J=e.jobs.filter(j=>j.qid===id);
- $('#pr').innerHTML=prHead()+`<h1>Kostenvoranschlag ${esc(k.no)}</h1><p>${fmtD(k.date)}<br>${esc(c.name)}<br>${esc(c.adr||'')}</p><table>`+J.map(j=>`<tr><td colspan="3"><strong>${esc(j.what)}</strong> (${fmtD(j.date)})</td></tr>`+j.lines.map(l=>`<tr><td>${esc(l.name)}</td><td class="n">${nf(l.h)} ${l.unit} × ${nf(l.pr)} €</td><td class="n">${nf(l.h*l.pr)} €</td></tr>`).join('')).join('')+`<tr><td colspan="2" class="sum">Gesamt</td><td class="n sum">${nf(J.reduce((s,j)=>s+jt(j),0))} €</td></tr></table><p>${k.paid?'Bezahlt':'Noch nicht bezahlt'}</p>`;
+ $('#pr').innerHTML=prHead()+`<h1>Kostenvoranschlag ${esc(k.no)}</h1><p>${fmtD(k.date)}<br>${esc(c.name)}<br>${esc(c.adr||'')}${c.tel||c.email?'<br>'+[c.tel,c.email].filter(Boolean).map(esc).join(' · '):''}</p><table>`+J.map(j=>`<tr><td colspan="3"><strong>${esc(j.what)}</strong> (${fmtD(j.date)})</td></tr>`+j.lines.map(l=>`<tr><td>${esc(l.name)}</td><td class="n">${nf(l.h)} ${l.unit} × ${nf(l.pr)} €</td><td class="n">${nf(l.h*l.pr)} €</td></tr>`).join('')).join('')+`<tr><td colspan="2" class="sum">Gesamt</td><td class="n sum">${nf(J.reduce((s,j)=>s+jt(j),0))} €</td></tr></table><p>${k.paid?'Bezahlt':'Noch nicht bezahlt'}</p>`;
  document.title=k.no.replace('/','-')+' '+(c.name||'');printWhenReady();
 }
 function extBox(e){
  const adm=can('inv'),KS=db.kvs.filter(k=>k.eid===e.id),vis=e.jobs.filter(j=>{if(!adm)return !j.qid&&jst(j)==='schreiben';const k=KS.find(k=>k.id===j.qid);return !(k&&k.confirmed)&&!(!j.qid&&jst(j)==='bezahlt')}),tot=vis.reduce((s,j)=>s+jt(j),0),cats=[...new Set(db.prices.map(p=>p.cat))];
+ const cu=db.customers.find(x=>x.id===e.cid),kd=cu?`<small>${[cu.adr,cu.tel,cu.email].filter(Boolean).map(esc).join(' · ')||'Keine Kontaktdaten eingetragen'}</small>`+det('kd'+e.id,'Kundendaten (gleiche Daten wie unter „Kunden“)',`<div class="row"><input value="${esc(cu.name)}" onchange="upC('${cu.id}','name',this.value);R()" aria-label="Name"><input value="${esc(cu.email)}" placeholder="E-Mail" onchange="upC('${cu.id}','email',this.value)"><input value="${esc(cu.tel)}" placeholder="Telefon" onchange="upC('${cu.id}','tel',this.value)"><input value="${esc(cu.adr)}" placeholder="Adresse" onchange="upC('${cu.id}','adr',this.value)"></div><input value="${esc(cu.note)}" placeholder="Notiz" style="width:100%" onchange="upC('${cu.id}','note',this.value)">`):'<small>Kunde nicht mehr in der Kundenliste.</small>';
  const form=det('n'+e.id,'Neue Arbeit eintragen',`<div class="row"><input id="w_${e.id}" placeholder="Was wurde getan?" style="flex:1;min-width:12rem"><input type="date" id="d_${e.id}" value="${today()}"></div>`+cats.map((c,ci)=>det('f'+e.id+ci,esc(c),`<table>${db.prices.filter(p=>p.cat===c).map(p=>{const pr=kn(e,p);return `<tr><td>${esc(p.name)}</td><td class="n">${pr==null?'<small>Preis fehlt (in der Preisliste eintragen)</small>':`<input id="h_${e.id}_${p.id}" size="4" placeholder="${p.unit}"> ${nf(pr)} €/${p.unit}`}</td></tr>`}).join('')}</table>`,'sub')).join('')+`<p><button onclick="addJob('${e.id}')">Arbeit speichern</button></p>`);
  const cp=!adm?'':det('p'+e.id,'Preise dieses Kunden',`<table>${db.prices.map(p=>{const v=kn(e,p),ind=e.prices[p.id]!=null&&e.prices[p.id]!==p.price;return `<tr><td>${esc(p.name)}</td><td class="n"><input class="pr ${ind?'ind':''}" value="${v==null?'':nf(v)}" placeholder="Preis" onchange="setCP('${e.id}','${p.id}',this.value)" aria-label="Preis ${esc(p.name)}"> €/${p.unit}</td></tr>`}).join('')}</table>`);
  const jl=vis.map(j=>{const k=KS.find(k=>k.id===j.qid);return `<div class="job ${k?'inkv':''}"><div class="row">${!adm||k||jst(j)!=='schreiben'?'':`<input type="checkbox" class="jsel_${e.id}" value="${j.id}" aria-label="auswählen">`}<strong>${esc(j.what)}</strong><small>${fmtD(j.date)}</small>${!adm?'':k?`<span class="tag">in ${esc(k.no)}</span>`:`<span class="tag">Rechnung: ${jst(j)==='schreiben'?'noch zu schreiben':'noch zu kassieren'}</span>`}<span style="flex:1"></span><strong>${nf(jt(j))} €</strong><button class="x" onclick="delJob('${e.id}','${j.id}')" aria-label="löschen">×</button></div><small>${j.lines.map(l=>`${esc(l.name)}: ${nf(l.h)} ${l.unit} × ${nf(l.pr)} €`).join('; ')}</small>${k?'':`<div class="row"><select id="mv_${j.id}"><option value="">Verschieben nach …</option>${db.ext.filter(x=>x.id!==e.id).map(x=>`<option value="${x.id}">${esc(cn(x))}</option>`).join('')}</select><button class="ghost" onclick="moveJob('${e.id}','${j.id}')">Verschieben</button></div>`}</div>`}).join('');
  const dr=KS.filter(k=>!k.confirmed),fr=e.jobs.some(j=>!j.qid&&jst(j)==='schreiben');
  const ctl=adm&&fr?`<div class="row"><select id="kt_${e.id}"><option value="new">Neuer Kostenvoranschlag</option>${dr.map(k=>`<option value="${k.id}">zu ${esc(k.no)} hinzufügen</option>`).join('')}</select><button class="ghost" onclick="mkKV('${e.id}',false)">Ausgewählte aufnehmen</button><button class="ghost" onclick="mkKV('${e.id}',true)">Alle offenen aufnehmen</button></div>`:'';
  const kvh=!adm?'':KS.map(k=>{const jj=e.jobs.filter(j=>j.qid===k.id);return `<div class="box"><div class="row"><strong>${esc(k.no)}</strong><small>${fmtD(k.date)}</small><span class="tag">${k.confirmed?(k.paid?'bezahlt':'noch nicht bezahlt'):'Entwurf'}</span><span style="flex:1"></span><strong>${nf(jj.reduce((s,j)=>s+jt(j),0))} €</strong></div>${jj.map(j=>`<div class="row"><span>${esc(j.what)} (${fmtD(j.date)})</span><span style="flex:1"></span>${nf(jt(j))} €${k.confirmed?'':`<button class="x" onclick="rmKV('${e.id}','${j.id}')" aria-label="entfernen">×</button>`}</div>`).join('')}<div class="row">${k.confirmed?`<button class="ghost" onclick="paidKV('${k.id}')">${k.paid?'Als unbezahlt markieren':'Als bezahlt markieren'}</button>`:`<button onclick="okKV('${k.id}')">Bestätigen</button>`}<button class="ghost" onclick="pdfKV('${k.id}')">Als PDF speichern</button></div></div>`}).join('');
- return `<div class="box"><div class="row"><h2 style="margin:0;flex:1">${esc(cn(e))}</h2>${isAdmin()?`<button class="ghost" onclick="closeExt('${e.id}')" title="Entfernt nur diese Box, der Kunde bleibt unter Kunden erhalten">Aus dieser Liste entfernen</button>`:''}</div>${form}${cp}<h3>Gesamtübersicht</h3>${jl||'<p class="empty">Keine offenen Arbeiten.</p>'}<div class="row sum"><span style="flex:1">Summe offen</span>${nf(tot)} €</div>${ctl}${kvh?`<h3>Kostenvoranschläge</h3>${kvh}`:''}</div>`;
+ return `<div class="box"><div class="row"><h2 style="margin:0;flex:1">${esc(cn(e))}</h2>${isAdmin()?`<button class="ghost" onclick="closeExt('${e.id}')" title="Entfernt nur diese Box, der Kunde bleibt unter Kunden erhalten">Aus dieser Liste entfernen</button>`:''}</div>${kd}${form}${cp}<h3>Gesamtübersicht</h3>${jl||'<p class="empty">Keine offenen Arbeiten.</p>'}<div class="row sum"><span style="flex:1">Summe offen</span>${nf(tot)} €</div>${ctl}${kvh?`<h3>Kostenvoranschläge</h3>${kvh}`:''}</div>`;
 }
 
 
@@ -567,7 +578,7 @@ function printWhenReady(){Promise.all([...document.querySelectorAll('#pr img')].
 function setInvImg(v){db.settings.invImg=!!v;save()}
 function pdfInv(id){
  const o=db.orders.find(x=>x.id===id);
- $('#pr').innerHTML=prHead()+`<h1>Rechnung ${esc(o.rno||'')}</h1><p>${fmtD(o.date)}<br>${esc(o.name)}<br>${esc(o.adr||'')}</p><table>${o.items.map(i=>{const pp=db.settings.invImg?(db.products.find(x=>x.id===i.pid)||db.products.find(x=>x.name===i.name)):null;return `<tr><td>${pp&&pp.img?`<img class="pi" src="${pp.img}" alt="">`:''}${esc(i.name)}</td><td class="n">${nf(i.qty).replace(',00','')} ${i.unit}</td><td class="n">${nf(i.total)} €</td></tr>`}).join('')}<tr><td colspan="2" class="sum">Gesamt</td><td class="n sum">${nf(sum(o.items))} €</td></tr></table><p>${o.inv==='bezahlt'?'Bezahlt':'Noch nicht bezahlt'}</p>`;
+ $('#pr').innerHTML=prHead()+`<h1>Rechnung ${esc(o.rno||'')}</h1><p>${fmtD(o.date)}<br>${esc(o.name)}<br>${esc(o.adr||'')}${o.tel||o.email?'<br>'+[o.tel,o.email].filter(Boolean).map(esc).join(' · '):''}</p><table>${o.items.map(i=>{const pp=db.settings.invImg?(db.products.find(x=>x.id===i.pid)||db.products.find(x=>x.name===i.name)):null;return `<tr><td>${pp&&pp.img?`<img class="pi" src="${pp.img}" alt="">`:''}${esc(i.name)}</td><td class="n">${nf(i.qty).replace(',00','')} ${i.unit}</td><td class="n">${nf(i.total)} €</td></tr>`}).join('')}<tr><td colspan="2" class="sum">Gesamt</td><td class="n sum">${nf(sum(o.items))} €</td></tr></table><p>${o.inv==='bezahlt'?'Bezahlt':'Noch nicht bezahlt'}</p>`;
  document.title=(o.rno||'Rechnung').replace('/','-')+' '+o.name;printWhenReady();
 }
 /* ---------- Produktion ---------- */
@@ -637,8 +648,9 @@ const V={
   const cats=[...new Set(db.prices.map(p=>p.cat))];
   const base=det('pl','Preisliste (Grundpreise)',cats.map((c,i)=>`<h3>${esc(c)} ${can('prices')?`<button class="x" onclick="renCat(${i})" aria-label="Kategorie umbenennen" title="Kategorie umbenennen">✎</button>`:''}</h3><table>${db.prices.filter(p=>p.cat===c).map(p=>`<tr><td>${esc(p.name)}</td><td class="n"><input class="pr" value="${p.price==null?'':nf(p.price)}" placeholder="Preis" onchange="setBase('${p.id}',this.value)" aria-label="Preis ${esc(p.name)}" ${can('prices')?'':'disabled'}> €/${p.unit}<small>${p.changed?'geändert '+fmtD(p.changed):'Preis fehlt'}</small></td>${can('prices')?`<td style="white-space:nowrap"><button class="x" onclick="editSvc('${p.id}')" aria-label="${esc(p.name)} bearbeiten" title="Name und Einheit ändern">✎</button><button class="x" onclick="delSvc('${p.id}')" aria-label="${esc(p.name)} entfernen" title="Leistung entfernen">×</button></td>`:''}</tr>`).join('')}</table>${can('prices')?`<button class="ghost" onclick="addSvc(${i})">+ Leistung hinzufügen</button>`:''}`).join('')+(can('prices')?'<p><button class="ghost" onclick="addSvcCat()">+ Neue Kategorie</button></p>':''));
   const fr=db.customers.filter(c=>!db.ext.some(e=>e.cid===c.id));
-  const top=`<div class="row"><select id="x_new"><option value="">Kunde aus der Liste öffnen</option>${fr.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select><button onclick="openExt()">Öffnen</button><button class="ghost" onclick="newExt()">+ Neuer Kunde</button></div>`;
-  return `${base}<h2>Kunden</h2>${top}`+(db.ext.length?db.ext.map(extBox).join(''):'<p class="empty">Noch kein Kunde geöffnet.</p>');
+  const top=`<div class="row"><select id="x_new"><option value="">Kunde aus der Liste öffnen</option>${fr.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select><button onclick="openExt()">Öffnen</button><button class="ghost" onclick="tf('xn')">${ui.f.xn?'Schließen':'+ Neuer Kunde'}</button></div>`;
+  const xform=ui.f.xn?`<form onsubmit="return addExtCust(this)"><p style="margin-top:0"><small>Der Kunde kommt in die gemeinsame Kundenliste und steht dann auch bei Bestellungen zur Verfügung.</small></p><div class="row"><input name="name" placeholder="Name" required><input name="email" placeholder="E-Mail"><input name="tel" placeholder="Telefon"><input name="adr" placeholder="Adresse"></div><div class="row"><input name="note" placeholder="Notiz" style="flex:1"><button>Kunde anlegen und öffnen</button></div></form>`:'';
+  return `${base}<h2>Kunden</h2>${top}${xform}`+(db.ext.length?db.ext.map(extBox).join(''):'<p class="empty">Noch kein Kunde geöffnet.</p>');
  },
  ext(){ui.tt='ext';return V.tasks()},
  rec(){
