@@ -136,6 +136,7 @@ async function handle(req, env, url) {
       if (!o || !SECS.includes(o.sec) || typeof o.id !== 'string' || !o.id || o.id.length > 80) return err('Ungültige Änderung.');
       if (ADMIN_ONLY.includes(o.sec) && !admin) return err('Dafür fehlt die Berechtigung.', 403);
       if (o.op === 'del') {
+        if (o.sec === 'products' && !admin) return err('Dafür fehlt die Berechtigung.', 403);
         st.push(env.DB.prepare('INSERT INTO items(sec,id,data,upd,del) VALUES(?,?,NULL,?,1) ON CONFLICT(sec,id) DO UPDATE SET data=NULL,upd=excluded.upd,del=1').bind(o.sec, o.id, now));
       } else if (o.op === 'put' && o.data && typeof o.data === 'object') {
         const d = { ...o.data };

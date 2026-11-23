@@ -37,7 +37,7 @@ tr.dim{opacity:.45}.pr{width:5.5rem;text-align:right}.av label{display:inline-bl
 .sum{font-weight:700;font-size:1.1rem}
 .done-o{opacity:.5}
 .empty{color:var(--muted);padding:.5rem 0}
-.prow{display:grid;grid-template-columns:56px 1fr auto 11rem;gap:.3rem .8rem;align-items:center;padding:.5rem 0;border-bottom:1px solid var(--line)}
+.prow{display:grid;grid-template-columns:56px 1fr auto 11rem auto;gap:.3rem .8rem;align-items:center;padding:.5rem 0;border-bottom:1px solid var(--line)}
 @media(max-width:760px){
  body{grid-template-columns:1fr;padding-bottom:calc(62px + env(safe-area-inset-bottom,0px))}
  nav{display:none;position:fixed;inset:0 0 calc(56px + env(safe-area-inset-bottom,0px)) 0;height:auto;z-index:6;overflow-y:auto;padding:1rem}
@@ -47,7 +47,7 @@ tr.dim{opacity:.45}.pr{width:5.5rem;text-align:right}.av label{display:inline-bl
  #bar button.on{background:#fff;color:var(--green);font-weight:600}
  main{padding:1rem 1rem 2rem}.task{display:flex;flex-wrap:wrap;align-items:center;gap:.3rem .6rem}.task>div{flex:1;min-width:0}.task>span:empty{display:none}.task select{order:9;flex:1 1 100%;margin-left:2rem;max-width:14rem}
  nav button{padding:.55rem .7rem}
- .prow{grid-template-columns:56px 1fr}.prow .n,.prow .av2{grid-column:2}
+ .prow{grid-template-columns:56px 1fr}.prow .n,.prow .av2,.prow>.x{grid-column:2}.prow>.x{justify-self:start}
 }
 h3{font-size:1rem;margin:1rem 0 .3rem}details{margin:.4rem 0}summary{cursor:pointer;font-weight:600;padding:.3rem 0}details.sub{margin-left:1rem}
 .job{border-top:1px solid var(--line);padding:.5rem 0}.job.inkv{background:#fff6dd}
@@ -61,9 +61,9 @@ h3{font-size:1rem;margin:1rem 0 .3rem}details{margin:.4rem 0}summary{cursor:poin
 .cd.heute{border:2px solid var(--green)}.cd.sel{background:#eef3ea;outline:2px solid #e0a800}
 .cd b{font-size:.85rem}.cd.heute b{color:var(--green)}
 .ce{font-size:.72rem;background:#fbe3e1;color:var(--red);border-radius:4px;padding:0 .25rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.ce.done{opacity:.45;text-decoration:line-through}
+.ce.ar{background:#e3eedc;color:var(--green)}.ce.done{opacity:.45;text-decoration:line-through}
 .cm{font-size:.72rem;color:var(--muted)}
-@media(max-width:760px){.cd{min-height:3.6rem}.ce{font-size:0;height:.45rem;padding:0;border-radius:99px;background:var(--red)}.ce.done{background:#d9a6a2}.cm{display:none}}
+@media(max-width:760px){.cd{min-height:3.6rem}.ce{font-size:0;height:.45rem;padding:0;border-radius:99px;background:var(--red)}.ce.ar{background:var(--green)}.ce.done{background:#d9a6a2}.cm{display:none}}
 textarea{font:inherit;width:100%;padding:.4rem .5rem;border:1px solid var(--line);border-radius:6px;margin:.3rem 0;background:#fff}
 .pre{white-space:pre-wrap;margin:.2rem 0 .6rem}
 .ph{position:relative;display:flex;width:56px;height:56px;border:1px dashed var(--line);border-radius:6px;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;color:var(--muted);font-size:.75rem;background:#fff}
@@ -71,7 +71,7 @@ textarea{font:inherit;width:100%;padding:.4rem .5rem;border:1px solid var(--line
 .ph input{position:absolute;opacity:0;width:1px;height:1px}
 .fl{display:flex;flex-direction:column;font-size:.75rem;color:var(--muted);gap:.1rem}
 #pr{display:none}
-.prow[hidden]{display:none}.prow>*{min-width:0}.prow.dim{opacity:.5}.prow .nm{font-weight:600}.prow select{width:100%;max-width:calc(100% - 4px)}
+.dt{font:inherit;font-size:.8rem;padding:.1rem .3rem;max-width:9.5rem}.prow[hidden]{display:none}.prow>*{min-width:0}.prow.dim{opacity:.5}.prow .nm{font-weight:600}.prow select{width:100%;max-width:calc(100% - 4px)}
 
 .gh{font-size:.75rem;opacity:.7;padding:1rem .7rem .2rem}
 .nf{margin-top:auto;padding-top:1rem}.stat{font-size:.75rem;padding:.3rem .7rem;opacity:.85}
@@ -234,13 +234,13 @@ function newDraft(){return{items:[],cat:'Frischfleisch',name:'',email:'',tel:'',
 
 /* ---------- Arbeiten (inkl. Kalender, Pakete) ---------- */
 function allTasks(){
- const a=db.tasks.map(t=>({k:'t',id:t.id,text:t.text,p:t.p,done:t.done}));
+ const a=db.tasks.map(t=>({k:'t',id:t.id,text:t.text,p:t.p,done:t.done,date:t.date}));
  db.events.forEach(e=>{const d=days(e.date);a.push({k:'e',id:e.id,text:e.title+(e.time?', '+e.time+' Uhr':''),date:e.date,p:d<=2?1:d<=14?2:3,done:e.done})});
  db.orders.forEach(o=>{if(o.cat==='Pakete'&&o.l&&o.b&&o.h&&o.w&&o.fertig&&!o.done)a.push({k:'s',id:o.id,text:'Paket versenden: '+o.name,p:1,done:!!o.shipped,note:o.l+'×'+o.b+'×'+o.h+' cm, '+o.w+' kg'})});
  return a;
 }
 function row(t){
- return `<li class="task ${t.done?'done':''} ${t.k==='e'?'ev':''}"><input type="checkbox" ${t.done?'checked':''} onchange="tog('${t.k}','${t.id}')" aria-label="erledigt"><div><span>${esc(t.text)}</span>${t.date?`<small>Termin am ${fmtD(t.date)}</small>`:''}${t.note?`<small>${esc(t.note)}</small>`:''}</div>`+
+ return `<li class="task ${t.done?'done':''} ${t.k==='e'?'ev':''}"><input type="checkbox" ${t.done?'checked':''} onchange="tog('${t.k}','${t.id}')" aria-label="erledigt"><div><span>${esc(t.text)}</span>${t.date&&t.k==='e'?`<small>Termin am ${fmtD(t.date)}</small>`:''}${t.k==='t'?`<small><label>Datum <input type="date" class="dt" value="${t.date||''}" onchange="setTD('${t.id}',this.value)" aria-label="Datum der Arbeit"></label></small>`:''}${t.note?`<small>${esc(t.note)}</small>`:''}</div>`+
  (t.k==='t'?`<select onchange="setP('${t.id}',this.value)" aria-label="Priorität">${[1,2,3].map(p=>`<option value="${p}" ${t.p==p?'selected':''}>${PL[p]}</option>`).join('')}</select><button class="x" onclick="editTask('${t.id}')" aria-label="bearbeiten">✎</button><button class="x" onclick="del('t','${t.id}')" aria-label="löschen">×</button>`:'')+`</li>`;
 }
 function tog(k,id){
@@ -250,14 +250,20 @@ function tog(k,id){
  save();R();
 }
 function editTask(id){const t=db.tasks.find(x=>x.id===id),n=prompt('Arbeit bearbeiten:',t.text);if(n&&n.trim()){t.text=n.trim();save();R()}}
+function setTD(id,v){db.tasks.find(x=>x.id===id).date=v||'';save();R()}
 function setP(id,p){db.tasks.find(x=>x.id===id).p=+p;save();R()}
 function del(k,id){
  if(!confirm('Wirklich löschen?'))return;
  const m={t:'tasks',e:'events',c:'customers',o:'orders'}[k];db[m]=db[m].filter(x=>x.id!==id);save();R();
 }
-function addTask(f){const t=f.text.value.trim();if(!t)return false;db.tasks.push({id:uid(),text:t,p:+f.p.value,done:false});save();R();return false}
+function addTask(f){const t=f.text.value.trim();if(!t)return false;const d=f.date.value||'';db.tasks.push({id:uid(),text:t,p:+f.p.value,done:false,date:d});if(d){ui.cm=d.slice(0,7);ui.sel=d}save();R();return false}
 
 /* ---------- Kalender ---------- */
+function calItems(date){
+ const a=db.events.filter(e=>e.date===date).map(e=>({k:'e',id:e.id,title:e.title,time:e.time,done:e.done}));
+ db.tasks.forEach(t=>{if(t.date===date)a.push({k:'t',id:t.id,title:t.text,time:'',done:t.done})});
+ return a.sort((x,y)=>(x.time||'').localeCompare(y.time||''));
+}
 const MN=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
 const p2=n=>String(n).padStart(2,'0');
 function calGo(d){const [y,m]=(ui.cm||today().slice(0,7)).split('-').map(Number);ui.cm=d===0?today().slice(0,7):(()=>{const t=new Date(y,m-1+d,1);return t.getFullYear()+'-'+p2(t.getMonth()+1)})();R()}
@@ -267,8 +273,8 @@ function calGrid(){
  let h=['Mo','Di','Mi','Do','Fr','Sa','So'].map(w=>`<div class="wd">${w}</div>`).join('');
  for(let i=0;i<n;i++){
   const d=i-off+1;if(d<1||d>dim){h+='<div class="cd leer"></div>';continue}
-  const date=cm+'-'+p2(d),ev=db.events.filter(e=>e.date===date).sort((a,b)=>(a.time||'').localeCompare(b.time||''));
-  h+=`<button class="cd ${date===t?'heute':''} ${date===ui.sel?'sel':''}" onclick="calPick('${date}')" aria-label="${d}. ${MN[m-1]}, ${ev.length} Termine"><b>${d}</b>`+ev.slice(0,3).map(e=>`<span class="ce ${e.done?'done':''}">${e.time?esc(e.time)+' ':''}${esc(e.title)}</span>`).join('')+(ev.length>3?`<span class="cm">+${ev.length-3} weitere</span>`:'')+`</button>`;
+  const date=cm+'-'+p2(d),ev=calItems(date);
+  h+=`<button class="cd ${date===t?'heute':''} ${date===ui.sel?'sel':''}" onclick="calPick('${date}')" aria-label="${d}. ${MN[m-1]}, ${ev.length} Termine"><b>${d}</b>`+ev.slice(0,3).map(e=>`<span class="ce ${e.k==='t'?'ar':''} ${e.done?'done':''}">${e.time?esc(e.time)+' ':''}${esc(e.title)}</span>`).join('')+(ev.length>3?`<span class="cm">+${ev.length-3} weitere</span>`:'')+`</button>`;
  }
  return `<div class="calnav"><button class="ghost" onclick="calGo(-1)" aria-label="Vorheriger Monat">‹</button><h2>${MN[m-1]} ${y}</h2><button class="ghost" onclick="calGo(1)" aria-label="Nächster Monat">›</button><button class="ghost" onclick="calGo(0)">Heute</button></div><div class="cg">${h}</div>`;
 }
@@ -284,6 +290,7 @@ function addProd(i){
  const unit=confirm('Preis pro kg?\nOK = pro kg, Abbrechen = pro Stück')?'kg':'Stk';
  db.products.push({id:uid(),cat,name,price:isNaN(price)?null:price,unit,avail:'ja',changed:today()});save();R();
 }
+function delProd(id){if(!isAdmin())return;const p=db.products.find(x=>x.id===id);if(!p||!confirm('Produkt „'+p.name+'“ wirklich entfernen?'))return;db.products=db.products.filter(x=>x.id!==id);save();R()}
 function addCat(){const c=prompt('Name der neuen Kategorie:');if(!c)return;const n=prompt('Erstes Produkt in '+c+':');if(!n)return;db.products.push({id:uid(),cat:c,name:n,price:null,unit:'Stk',avail:'ja',changed:today()});save();R()}
 
 /* ---------- Kunden ---------- */
@@ -433,18 +440,18 @@ const V={
  },
  tasks(){
   const a=allTasks();
-  let h=`<h1>Arbeiten</h1><form onsubmit="return addTask(this)" class="row"><input name="text" placeholder="Neue Arbeit" required style="flex:1;min-width:12rem"><select name="p"><option value="1">Hohe Priorität</option><option value="2" selected>Mittlere Priorität</option><option value="3">Niedrige Priorität</option></select><button>Hinzufügen</button></form>`;
+  let h=`<h1>Arbeiten</h1><form onsubmit="return addTask(this)" class="row"><input name="text" placeholder="Neue Arbeit" required style="flex:1;min-width:12rem"><select name="p"><option value="1">Hohe Priorität</option><option value="2" selected>Mittlere Priorität</option><option value="3">Niedrige Priorität</option></select><input type="date" name="date" aria-label="Datum (optional)" title="Datum (optional)"><button>Hinzufügen</button></form>`;
   [1,2,3].forEach(p=>{const l=a.filter(t=>t.p===p&&!t.done);if(l.length)h+=`<h2>${PL[p]}</h2><ul class="tl">${l.map(row).join('')}</ul>`});
   const d=a.filter(t=>t.done);if(d.length)h+=`<h2>Erledigt</h2><ul class="tl">${d.map(row).join('')}</ul>`;
   return h;
  },
  cal(){
-  const ev=[...db.events].sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time)),sel=ui.sel||today(),sd=ev.filter(e=>e.date===sel);
-  const li=e=>`<li class="task ev ${e.done?'done':''}"><span></span><div><span>${esc(e.title)}</span><small>${fmtD(e.date)}${e.time?', '+e.time+' Uhr':''}</small></div><span></span><button class="x" onclick="del('e','${e.id}')" aria-label="löschen">×</button></li>`;
+  const ev=[...db.events].sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time)),sel=ui.sel||today(),sd=calItems(sel),dt=db.tasks.filter(t=>t.date).map(t=>({k:'t',id:t.id,title:t.text,time:'',date:t.date,done:t.done})),all=[...ev.map(e=>({...e,k:'e'})),...dt].sort((a,b)=>(a.date+(a.time||'')).localeCompare(b.date+(b.time||'')));
+  const li=e=>`<li class="task ${e.k==='t'?'':'ev'} ${e.done?'done':''}"><span></span><div><span>${e.k==='t'?'Arbeit: ':''}${esc(e.title)}</span><small>${fmtD(e.date||sel)}${e.time?', '+e.time+' Uhr':''}</small></div><span></span>${e.k==='t'?`<button class="x" onclick="go('tasks')" aria-label="bei Arbeiten öffnen">→</button>`:`<button class="x" onclick="del('e','${e.id}')" aria-label="löschen">×</button>`}</li>`;
   return `<h1>Kalender</h1>${calGrid()}${tb('ev','+ Neuer Termin')}${ui.f.ev?`<form onsubmit="return addEvent(this)" class="row"><input name="title" placeholder="Termin" required style="flex:1;min-width:10rem"><input type="date" name="date" value="${sel}" required><input type="time" name="time" required><button>Termin eintragen</button></form>`:''}`+
   `<h2>Termine am ${fmtD(sel)}</h2>`+(sd.length?`<ul class="tl">${sd.map(li).join('')}</ul>`:'<p class="empty">An diesem Tag ist nichts eingetragen.</p>')+
-  `<h2>Alle Termine</h2>`+(ev.length?`<ul class="tl">${ev.map(li).join('')}</ul>`:'<p class="empty">Noch keine Termine.</p>')+
-  `<p><small>Termine erscheinen automatisch unter „Arbeiten“: ab 2 Wochen vorher mit mittlerer, 2 Tage vorher mit hoher Priorität.</small></p>`;
+  `<h2>Alle Termine und Arbeiten mit Datum</h2>`+(all.length?`<ul class="tl">${all.map(li).join('')}</ul>`:'<p class="empty">Noch keine Termine.</p>')+
+  `<p><small>Arbeiten mit Datum erscheinen hier grün, Termine rot. Termine erscheinen automatisch unter „Arbeiten“: ab 2 Wochen vorher mit mittlerer, 2 Tage vorher mit hoher Priorität.</small></p>`;
  },
  orders(){
   const d=ui.d,av=db.products.filter(p=>p.avail==='ja'),cats=[...new Set(av.map(p=>p.cat))];
@@ -459,7 +466,7 @@ const V={
  },
  products(){
   const cats=[...new Set(db.products.map(p=>p.cat))],adm=isAdmin(),q=(ui.pq||'').toLowerCase();
-  const row=p=>`<div class="prow ${p.avail!=='ja'?'dim':''}" data-n="${esc(p.name.toLowerCase())}"><label class="ph">${p.img?`<img src="${p.img}" alt="Foto ${esc(p.name)}">`:'<span>Foto</span>'}<input type="file" accept="image/*" onchange="setImg('${p.id}',this)" aria-label="Foto für ${esc(p.name)}"></label><div><div class="nm">${esc(p.name)}</div>${p.changed?`<small>Preis geändert ${fmtD(p.changed)}</small>`:''}</div><div class="n"><input class="pr" value="${p.price==null?'':nf(p.price)}" placeholder="Anfrage" onchange="setPrice('${p.id}',this.value)" aria-label="Preis ${esc(p.name)}" ${adm?'':'disabled'}> €/${p.unit}</div><select class="av2" onchange="setAv('${p.id}',this.value)" aria-label="Verfügbarkeit ${esc(p.name)}"><option value="ja" ${p.avail==='ja'?'selected':''}>Verfügbar</option><option value="nein" ${p.avail==='nein'?'selected':''}>Nicht verfügbar</option><option value="aus" ${p.avail==='aus'?'selected':''}>Ausgeblendet</option></select></div>`;
+  const row=p=>`<div class="prow ${p.avail!=='ja'?'dim':''}" data-n="${esc(p.name.toLowerCase())}"><label class="ph">${p.img?`<img src="${p.img}" alt="Foto ${esc(p.name)}">`:'<span>Foto</span>'}<input type="file" accept="image/*" onchange="setImg('${p.id}',this)" aria-label="Foto für ${esc(p.name)}"></label><div><div class="nm">${esc(p.name)}</div>${p.changed?`<small>Preis geändert ${fmtD(p.changed)}</small>`:''}</div><div class="n"><input class="pr" value="${p.price==null?'':nf(p.price)}" placeholder="Anfrage" onchange="setPrice('${p.id}',this.value)" aria-label="Preis ${esc(p.name)}" ${adm?'':'disabled'}> €/${p.unit}</div><select class="av2" onchange="setAv('${p.id}',this.value)" aria-label="Verfügbarkeit ${esc(p.name)}"><option value="ja" ${p.avail==='ja'?'selected':''}>Verfügbar</option><option value="nein" ${p.avail==='nein'?'selected':''}>Nicht verfügbar</option><option value="aus" ${p.avail==='aus'?'selected':''}>Ausgeblendet</option></select>${adm?`<button class="x" onclick="delProd('${p.id}')" aria-label="Produkt ${esc(p.name)} entfernen" title="Produkt entfernen">×</button>`:''}</div>`;
   return `<h1>Produkte</h1><div class="row"><input type="search" id="pq" placeholder="Produkt suchen" value="${esc(ui.pq||'')}" oninput="filterP(this.value)" style="flex:1;min-width:12rem" aria-label="Produkt suchen"><button class="ghost" onclick="addCat()">+ Neue Kategorie</button></div>`+
    cats.map((c,i)=>{const l=db.products.filter(p=>p.cat===c),nn=l.filter(p=>p.avail!=='ja').length;return det('pc'+i,`${esc(c)} <small style="display:inline">(${l.length}${nn?', '+nn+' nicht verfügbar oder ausgeblendet':''})</small>`,l.map(row).join('')+`<p><button class="ghost" onclick="addProd(${i})">+ Produkt hinzufügen</button></p>`)}).join('');
  },
