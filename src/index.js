@@ -144,6 +144,11 @@ async function handle(req, env, url) {
           const old = await env.DB.prepare('SELECT data FROM items WHERE sec=? AND id=? AND del=0').bind('products', o.id).first();
           if (old && old.data) { const p = JSON.parse(old.data); d.price = p.price; d.changed = p.changed; d.unit = p.unit; }
         }
+        if (o.sec === 'tasks' && !admin) {
+          const old = await env.DB.prepare('SELECT data FROM items WHERE sec=? AND id=? AND del=0').bind('tasks', o.id).first();
+          const w = old && old.data ? (JSON.parse(old.data).who || '') : '';
+          if (w) d.who = w; else delete d.who;
+        }
         const text = JSON.stringify(d);
         if (text.length > MAX_DATA) return err('Ein Eintrag ist zu groß (Foto verkleinern).', 413);
         st.push(env.DB.prepare('INSERT INTO items(sec,id,data,upd,del) VALUES(?,?,?,?,0) ON CONFLICT(sec,id) DO UPDATE SET data=excluded.data,upd=excluded.upd,del=0').bind(o.sec, o.id, text, now));
