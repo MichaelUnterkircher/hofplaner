@@ -487,8 +487,8 @@ function pdfX(kind,id){
  if(kind==='k')return pdfKV(id);
  let e,j;db.ext.forEach(x=>x.jobs.forEach(y=>{if(y.id===id){e=x;j=y}}));if(!j)return;
  const c=db.customers.find(x=>x.id===e.cid)||{};
- $('#pr').innerHTML=`<h1>Rechnung</h1><p>${fmtD(j.date)}<br>${esc(c.name)}<br>${esc(c.adr||'')}</p><table><tr><td colspan="3"><strong>${esc(j.what)}</strong></td></tr>`+j.lines.map(l=>`<tr><td>${esc(l.name)}</td><td class="n">${nf(l.h)} ${l.unit} × ${nf(l.pr)} €</td><td class="n">${nf(l.h*l.pr)} €</td></tr>`).join('')+`<tr><td colspan="2" class="sum">Gesamt</td><td class="n sum">${nf(jt(j))} €</td></tr></table><p>${jst(j)==='bezahlt'?'Bezahlt':'Noch nicht bezahlt'}</p>`;
- document.title='Rechnung '+(c.name||'');window.print();
+ $('#pr').innerHTML=prHead()+`<h1>Rechnung</h1><p>${fmtD(j.date)}<br>${esc(c.name)}<br>${esc(c.adr||'')}</p><table><tr><td colspan="3"><strong>${esc(j.what)}</strong></td></tr>`+j.lines.map(l=>`<tr><td>${esc(l.name)}</td><td class="n">${nf(l.h)} ${l.unit} × ${nf(l.pr)} €</td><td class="n">${nf(l.h*l.pr)} €</td></tr>`).join('')+`<tr><td colspan="2" class="sum">Gesamt</td><td class="n sum">${nf(jt(j))} €</td></tr></table><p>${jst(j)==='bezahlt'?'Bezahlt':'Noch nicht bezahlt'}</p>`;
+ document.title='Rechnung '+(c.name||'');printWhenReady();
 }
 const kn=(e,p)=>e.prices[p.id]!=null?e.prices[p.id]:p.price;
 const jt=j=>j.lines.reduce((s,l)=>s+l.h*l.pr,0);
@@ -524,8 +524,8 @@ function okKV(id){const k=db.kvs.find(x=>x.id===id);if(!conf2(k.no+' bestätigen
 function paidKV(id){const k=db.kvs.find(x=>x.id===id);setXInv('k',id,kst(k)==='bezahlt'?'kassieren':'bezahlt')}
 function pdfKV(id){
  const k=db.kvs.find(x=>x.id===id),e=fe(k.eid),c=db.customers.find(x=>x.id===e.cid)||{},J=e.jobs.filter(j=>j.qid===id);
- $('#pr').innerHTML=`<h1>Kostenvoranschlag ${esc(k.no)}</h1><p>${fmtD(k.date)}<br>${esc(c.name)}<br>${esc(c.adr||'')}</p><table>`+J.map(j=>`<tr><td colspan="3"><strong>${esc(j.what)}</strong> (${fmtD(j.date)})</td></tr>`+j.lines.map(l=>`<tr><td>${esc(l.name)}</td><td class="n">${nf(l.h)} ${l.unit} × ${nf(l.pr)} €</td><td class="n">${nf(l.h*l.pr)} €</td></tr>`).join('')).join('')+`<tr><td colspan="2" class="sum">Gesamt</td><td class="n sum">${nf(J.reduce((s,j)=>s+jt(j),0))} €</td></tr></table><p>${k.paid?'Bezahlt':'Noch nicht bezahlt'}</p>`;
- document.title=k.no.replace('/','-')+' '+(c.name||'');window.print();
+ $('#pr').innerHTML=prHead()+`<h1>Kostenvoranschlag ${esc(k.no)}</h1><p>${fmtD(k.date)}<br>${esc(c.name)}<br>${esc(c.adr||'')}</p><table>`+J.map(j=>`<tr><td colspan="3"><strong>${esc(j.what)}</strong> (${fmtD(j.date)})</td></tr>`+j.lines.map(l=>`<tr><td>${esc(l.name)}</td><td class="n">${nf(l.h)} ${l.unit} × ${nf(l.pr)} €</td><td class="n">${nf(l.h*l.pr)} €</td></tr>`).join('')).join('')+`<tr><td colspan="2" class="sum">Gesamt</td><td class="n sum">${nf(J.reduce((s,j)=>s+jt(j),0))} €</td></tr></table><p>${k.paid?'Bezahlt':'Noch nicht bezahlt'}</p>`;
+ document.title=k.no.replace('/','-')+' '+(c.name||'');printWhenReady();
 }
 function extBox(e){
  const adm=can('inv'),KS=db.kvs.filter(k=>k.eid===e.id),vis=e.jobs.filter(j=>{if(!adm)return !j.qid&&jst(j)==='schreiben';const k=KS.find(k=>k.id===j.qid);return !(k&&k.confirmed)&&!(!j.qid&&jst(j)==='bezahlt')}),tot=vis.reduce((s,j)=>s+jt(j),0),cats=[...new Set(db.prices.map(p=>p.cat))];
@@ -557,11 +557,12 @@ function addMixCol(t){const c=prompt('Neuer Fleischteil (z. B. Hals):');if(!c)re
 /* ---------- Rechnungen ---------- */
 async function doneO(id,paid){const o=db.orders.find(x=>x.id===id);const was=o.done;o.done=!o.done;if(!o.done)o.inv='schreiben';if(o.done){o.inv=paid?'bezahlt':(o.inv||'schreiben');if(!o.rno){try{const r=await api('/api/next',{k:'rn'});o.rno='R '+today().slice(0,4)+'/'+String(r.n).padStart(3,'0')}catch(e){o.done=was;alert('Keine Verbindung: Die Rechnungsnummer konnte nicht vergeben werden.');return}}}save();R()}
 function setInv(id,st){db.orders.find(x=>x.id===id).inv=st;save();R()}
+const prHead=()=>`<div class="catH"><img src="/logo.png" alt="Hof am Schloss" style="height:70px"><div><strong style="font-size:1.3rem">Hof am Schloss</strong></div></div>`;
 function printWhenReady(){Promise.all([...document.querySelectorAll('#pr img')].map(i=>i.decode?i.decode().catch(()=>{}):0)).then(()=>window.print())}
 function setInvImg(v){db.settings.invImg=!!v;save()}
 function pdfInv(id){
  const o=db.orders.find(x=>x.id===id);
- $('#pr').innerHTML=`<h1>Rechnung ${esc(o.rno||'')}</h1><p>${fmtD(o.date)}<br>${esc(o.name)}<br>${esc(o.adr||'')}</p><table>${o.items.map(i=>{const pp=db.settings.invImg?(db.products.find(x=>x.id===i.pid)||db.products.find(x=>x.name===i.name)):null;return `<tr><td>${pp&&pp.img?`<img class="pi" src="${pp.img}" alt="">`:''}${esc(i.name)}</td><td class="n">${nf(i.qty).replace(',00','')} ${i.unit}</td><td class="n">${nf(i.total)} €</td></tr>`}).join('')}<tr><td colspan="2" class="sum">Gesamt</td><td class="n sum">${nf(sum(o.items))} €</td></tr></table><p>${o.inv==='bezahlt'?'Bezahlt':'Noch nicht bezahlt'}</p>`;
+ $('#pr').innerHTML=prHead()+`<h1>Rechnung ${esc(o.rno||'')}</h1><p>${fmtD(o.date)}<br>${esc(o.name)}<br>${esc(o.adr||'')}</p><table>${o.items.map(i=>{const pp=db.settings.invImg?(db.products.find(x=>x.id===i.pid)||db.products.find(x=>x.name===i.name)):null;return `<tr><td>${pp&&pp.img?`<img class="pi" src="${pp.img}" alt="">`:''}${esc(i.name)}</td><td class="n">${nf(i.qty).replace(',00','')} ${i.unit}</td><td class="n">${nf(i.total)} €</td></tr>`}).join('')}<tr><td colspan="2" class="sum">Gesamt</td><td class="n sum">${nf(sum(o.items))} €</td></tr></table><p>${o.inv==='bezahlt'?'Bezahlt':'Noch nicht bezahlt'}</p>`;
  document.title=(o.rno||'Rechnung').replace('/','-')+' '+o.name;printWhenReady();
 }
 /* ---------- Produktion ---------- */
