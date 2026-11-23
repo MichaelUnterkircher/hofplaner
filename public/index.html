@@ -61,9 +61,9 @@ h3{font-size:1rem;margin:1rem 0 .3rem}details{margin:.4rem 0}summary{cursor:poin
 .cd.heute{border:2px solid var(--green)}.cd.sel{background:#eef3ea;outline:2px solid #e0a800}
 .cd b{font-size:.85rem}.cd.heute b{color:var(--green)}
 .ce{font-size:.72rem;background:#fbe3e1;color:var(--red);border-radius:4px;padding:0 .25rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.ce.ar{background:#e3eedc;color:var(--green)}.ce.jb{background:#dde8f3;color:#1f4e79}.task.jb{border-left-color:#2c6aa0}.task.jb span{color:#2c6aa0;font-weight:600}.tc{display:flex;flex-wrap:wrap;gap:.2rem .9rem;align-items:center}.tc label{display:inline-flex;gap:.3rem;align-items:center}.task .tc select{flex:none;order:0;margin:0;width:auto;max-width:9.5rem}.ce.done{opacity:.45;text-decoration:line-through}
+.ce.ar{background:#e3eedc;color:var(--green)}.ce.jb{background:#dde8f3;color:#1f4e79}.ce.od{background:#fdecc8;color:#7a4b00}.task.od{border-left-color:#d9930d}.task.od span{color:#7a4b00;font-weight:600}.task.jb{border-left-color:#2c6aa0}.task.jb span{color:#2c6aa0;font-weight:600}.tc{display:flex;flex-wrap:wrap;gap:.2rem .9rem;align-items:center}.tc label{display:inline-flex;gap:.3rem;align-items:center}.task .tc select{flex:none;order:0;margin:0;width:auto;max-width:9.5rem}.ce.done{opacity:.45;text-decoration:line-through}
 .cm{font-size:.72rem;color:var(--muted)}
-@media(max-width:760px){.cd{min-height:3.6rem}.ce{font-size:0;height:.45rem;padding:0;border-radius:99px;background:var(--red)}.ce.ar{background:var(--green)}.ce.jb{background:#2c6aa0}.ce.done{background:#d9a6a2}.cm{display:none}}
+@media(max-width:760px){.cd{min-height:3.6rem}.ce{font-size:0;height:.45rem;padding:0;border-radius:99px;background:var(--red)}.ce.ar{background:var(--green)}.ce.jb{background:#2c6aa0}.ce.od{background:#d9930d}.ce.done{background:#d9a6a2}.cm{display:none}}
 textarea{font:inherit;width:100%;padding:.4rem .5rem;border:1px solid var(--line);border-radius:6px;margin:.3rem 0;background:#fff}
 .pre{white-space:pre-wrap;margin:.2rem 0 .6rem}
 .ph{position:relative;display:flex;width:56px;height:56px;border:1px dashed var(--line);border-radius:6px;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;color:var(--muted);font-size:.75rem;background:#fff}
@@ -230,7 +230,7 @@ async function changePw(f){if(f.n.value!==f.n2.value){alert('Die neuen Passwört
 function filterP(v){ui.pq=v;const q=v.trim().toLowerCase();document.querySelectorAll('#main .prow').forEach(r=>{r.hidden=!!q&&!r.dataset.n.includes(q)});document.querySelectorAll('#main details').forEach(d=>{d.hidden=!!q&&![...d.querySelectorAll('.prow')].some(r=>!r.hidden);if(q)d.open=true})}
 function quick(v){if(v==='orders')ui.f.o=true;if(v==='cal')ui.f.ev=true;go(v)}
 function tf(k){ui.f[k]=!ui.f[k];R()}
-function newDraft(){return{items:[],cat:'Frischfleisch',name:'',email:'',tel:'',adr:'',l:'',b:'',h:'',w:'',fertig:false}}
+function newDraft(){return{items:[],cat:'Frischfleisch',name:'',email:'',tel:'',adr:'',l:'',b:'',h:'',w:'',due:'',fertig:false}}
 
 /* ---------- Arbeiten (inkl. Kalender, Pakete) ---------- */
 function allTasks(){
@@ -293,6 +293,7 @@ function calItems(date){
  const a=db.events.filter(e=>e.date===date).map(e=>({k:'e',id:e.id,title:e.title,time:e.time,date,done:e.done}));
  db.tasks.forEach(t=>{if(occursOn(t,date))a.push({k:'t',id:t.id,title:t.text,time:'',date,done:!t.rep&&t.done,rep:t.rep})});
  db.ext.forEach(e=>e.jobs.forEach(j=>{if(j.date===date)a.push({k:'j',id:j.id,title:cn(e)+': '+j.what,time:'',date,done:false})}));
+ db.orders.forEach(o=>{if(o.due===date)a.push({k:'o',id:o.id,title:o.name+' ('+o.cat+')',time:'',date,done:!!o.done})});
  return a.sort((x,y)=>(x.time||'').localeCompare(y.time||''));
 }
 function calGo(d){const [y,m]=(ui.cm||today().slice(0,7)).split('-').map(Number);ui.cm=d===0?today().slice(0,7):(()=>{const t=new Date(y,m-1+d,1);return t.getFullYear()+'-'+p2(t.getMonth()+1)})();R()}
@@ -303,7 +304,7 @@ function calGrid(){
  for(let i=0;i<n;i++){
   const d=i-off+1;if(d<1||d>dim){h+='<div class="cd leer"></div>';continue}
   const date=cm+'-'+p2(d),ev=calItems(date);
-  h+=`<button class="cd ${date===t?'heute':''} ${date===ui.sel?'sel':''}" onclick="calPick('${date}')" aria-label="${d}. ${MN[m-1]}, ${ev.length} Termine"><b>${d}</b>`+ev.slice(0,3).map(e=>`<span class="ce ${e.k==='t'?'ar':e.k==='j'?'jb':''} ${e.done?'done':''}">${e.time?esc(e.time)+' ':''}${esc(e.title)}</span>`).join('')+(ev.length>3?`<span class="cm">+${ev.length-3} weitere</span>`:'')+`</button>`;
+  h+=`<button class="cd ${date===t?'heute':''} ${date===ui.sel?'sel':''}" onclick="calPick('${date}')" aria-label="${d}. ${MN[m-1]}, ${ev.length} Termine"><b>${d}</b>`+ev.slice(0,3).map(e=>`<span class="ce ${e.k==='t'?'ar':e.k==='j'?'jb':e.k==='o'?'od':''} ${e.done?'done':''}">${e.time?esc(e.time)+' ':''}${esc(e.title)}</span>`).join('')+(ev.length>3?`<span class="cm">+${ev.length-3} weitere</span>`:'')+`</button>`;
  }
  return `<div class="calnav"><button class="ghost" onclick="calGo(-1)" aria-label="Vorheriger Monat">‹</button><h2>${MN[m-1]} ${y}</h2><button class="ghost" onclick="calGo(1)" aria-label="Nächster Monat">›</button><button class="ghost" onclick="calGo(0)">Heute</button></div><div class="cg">${h}</div>`;
 }
@@ -327,7 +328,7 @@ function addCust(f){const n=f.name.value.trim();if(!n)return false;db.customers.
 function upC(id,k,v){db.customers.find(x=>x.id===id)[k]=v;save()}
 
 /* ---------- Bestellungen ---------- */
-const F=['name','email','tel','adr','l','b','h','w'];
+const F=['name','email','tel','adr','l','b','h','w','due'];
 function readForm(){
  const d=ui.d;F.forEach(k=>{const e=$('#o_'+k);if(e)d[k]=e.value});
  const c=$('#o_cat');if(c)d.cat=c.value;const f=$('#o_f');if(f)d.fertig=f.checked;
@@ -502,22 +503,23 @@ const V={
   const ev=db.events.map(e=>({k:'e',id:e.id,title:e.title,time:e.time,date:e.date,done:e.done})),
    dt=db.tasks.filter(t=>t.date&&(t.rep||!t.done||t.date>=td)).map(t=>({k:'t',id:t.id,title:t.text,time:'',date:t.date,done:!t.rep&&t.done,rep:t.rep})),jb=[];
   db.ext.forEach(e=>e.jobs.forEach(j=>{if(j.date&&j.date>=td)jb.push({k:'j',id:j.id,title:cn(e)+': '+j.what,time:'',date:j.date,done:false})}));
+  db.orders.forEach(o=>{if(o.due&&!o.done)jb.push({k:'o',id:o.id,title:o.name+' ('+o.cat+')',time:'',date:o.due,done:false})});
   const all=[...ev,...dt,...jb].sort((a,b)=>(a.date+(a.time||'')).localeCompare(b.date+(b.time||'')));
-  const lbl={e:'',t:'Arbeit: ',j:'Dritte: '};
-  const li=e=>`<li class="task ${e.k==='e'?'ev':e.k==='j'?'jb':''} ${e.done?'done':''}">${e.k==='t'?`<input type="checkbox" ${e.done?'checked':''} onchange="tog('t','${e.id}')" aria-label="erledigt">`:'<span></span>'}<div><span>${lbl[e.k]}${esc(e.title)}</span><small>${fmtD(e.date||sel)}${e.time?', '+e.time+' Uhr':''}${e.rep?', '+RL[e.rep]:''}</small></div><span></span>${e.k==='t'?`<button class="x" onclick="ui.tt='hof';go('tasks')" aria-label="bei Arbeiten öffnen">→</button>`:e.k==='j'?`<button class="x" onclick="ui.tt='ext';go('tasks')" aria-label="bei Arbeiten für Dritte öffnen">→</button>`:`<button class="x" onclick="del('e','${e.id}')" aria-label="löschen">×</button>`}</li>`;
+  const lbl={e:'',t:'Arbeit: ',j:'Dritte: ',o:'Bestellung: '};
+  const li=e=>`<li class="task ${e.k==='e'?'ev':e.k==='j'?'jb':e.k==='o'?'od':''} ${e.done?'done':''}">${e.k==='t'?`<input type="checkbox" ${e.done?'checked':''} onchange="tog('t','${e.id}')" aria-label="erledigt">`:'<span></span>'}<div><span>${lbl[e.k]}${esc(e.title)}</span><small>${fmtD(e.date||sel)}${e.time?', '+e.time+' Uhr':''}${e.rep?', '+RL[e.rep]:''}</small></div><span></span>${e.k==='t'?`<button class="x" onclick="ui.tt='hof';go('tasks')" aria-label="bei Arbeiten öffnen">→</button>`:e.k==='o'?`<button class="x" onclick="ui.of='open';go('orders')" aria-label="bei Bestellungen öffnen">→</button>`:e.k==='j'?`<button class="x" onclick="ui.tt='ext';go('tasks')" aria-label="bei Arbeiten für Dritte öffnen">→</button>`:`<button class="x" onclick="del('e','${e.id}')" aria-label="löschen">×</button>`}</li>`;
   return `<h1>Kalender</h1>${calGrid()}${tb('ev','+ Neuer Termin')}${ui.f.ev?`<form onsubmit="return addEvent(this)" class="row"><input name="title" placeholder="Termin" required style="flex:1;min-width:10rem"><input type="date" name="date" value="${sel}" required><input type="time" name="time" required><button>Termin eintragen</button></form>`:''}`+
   `<h2>Am ${fmtD(sel)}</h2>`+(sd.length?`<ul class="tl">${sd.map(li).join('')}</ul>`:'<p class="empty">An diesem Tag ist nichts eingetragen.</p>')+
   `<h2>Alle Termine, Arbeiten und Aufträge</h2>`+(all.length?`<ul class="tl">${all.map(li).join('')}</ul>`:'<p class="empty">Noch nichts eingetragen.</p>')+
-  `<p><small>Rot: Termine. Grün: Arbeiten (auch wiederkehrende). Blau: Arbeiten für Dritte (nur für Admins sichtbar). Termine erscheinen automatisch unter „Arbeiten“: ab 2 Wochen vorher mit mittlerer, 2 Tage vorher mit hoher Priorität.</small></p>`;
+  `<p><small>Rot: Termine. Grün: Arbeiten (auch wiederkehrende). Blau: Arbeiten für Dritte (nur für Admins sichtbar). Orange: Bestellungen mit Abholung oder Lieferung. Termine erscheinen automatisch unter „Arbeiten“: ab 2 Wochen vorher mit mittlerer, 2 Tage vorher mit hoher Priorität.</small></p>`;
  },
  orders(){
   const d=ui.d,av=db.products.filter(p=>p.avail==='ja'),cats=[...new Set(av.map(p=>p.cat))];
-  const form=`<form onsubmit="return false"><div class="row"><input id="o_name" list="cl" placeholder="Name" value="${esc(d.name)}" onchange="suggest(this)"><datalist id="cl">${db.customers.map(c=>`<option value="${esc(c.name)}">`).join('')}</datalist><datalist id="cl_e">${db.customers.filter(c=>c.email).map(c=>`<option value="${esc(c.email)}">`).join('')}</datalist><input id="o_email" list="cl_e" placeholder="E-Mail" value="${esc(d.email)}" onchange="suggest(this)"><datalist id="cl_t">${db.customers.filter(c=>c.tel).map(c=>`<option value="${esc(c.tel)}">`).join('')}</datalist><input id="o_tel" list="cl_t" placeholder="Telefon" value="${esc(d.tel)}" onchange="suggest(this)"><input id="o_adr" placeholder="Adresse" value="${esc(d.adr)}" style="flex:1;min-width:12rem"></div>`+
+  const form=`<form onsubmit="return false"><div class="row"><input id="o_name" list="cl" placeholder="Name" value="${esc(d.name)}" onchange="suggest(this)"><datalist id="cl">${db.customers.map(c=>`<option value="${esc(c.name)}">`).join('')}</datalist><datalist id="cl_e">${db.customers.filter(c=>c.email).map(c=>`<option value="${esc(c.email)}">`).join('')}</datalist><input id="o_email" list="cl_e" placeholder="E-Mail" value="${esc(d.email)}" onchange="suggest(this)"><datalist id="cl_t">${db.customers.filter(c=>c.tel).map(c=>`<option value="${esc(c.tel)}">`).join('')}</datalist><input id="o_tel" list="cl_t" placeholder="Telefon" value="${esc(d.tel)}" onchange="suggest(this)"><input id="o_adr" placeholder="Adresse" value="${esc(d.adr)}" style="flex:1;min-width:12rem"><label class="fl">Abholung / Lieferung <input type="date" id="o_due" value="${esc(d.due||'')}"></label></div>`+
   `<div class="row"><select id="o_cat" onchange="readForm();R()">${db.ocats.map(c=>`<option ${c===d.cat?'selected':''}>${esc(c)}</option>`).join('')}</select><button type="button" class="ghost" onclick="addOCat()" aria-label="Unterteilung hinzufügen">+</button></div>`+
   (d.cat==='Pakete'?`<div class="row"><input id="o_l" size="5" placeholder="Länge cm" value="${esc(d.l)}"><input id="o_b" size="5" placeholder="Breite cm" value="${esc(d.b)}"><input id="o_h" size="5" placeholder="Höhe cm" value="${esc(d.h)}"><input id="o_w" size="5" placeholder="Gewicht kg" value="${esc(d.w)}"><label><input type="checkbox" id="o_f" ${d.fertig?'checked':''}> Paket ist fertig</label></div>`:'')+
   `<div class="row"><select id="o_prod">${cats.map(c=>`<optgroup label="${esc(c)}">${av.filter(p=>p.cat===c).map(p=>`<option value="${p.id}">${esc(p.name)} (${p.price==null?'auf Anfrage':nf(p.price)+' €/'+p.unit})</option>`).join('')}</optgroup>`).join('')}</select><input id="o_qty" size="6" placeholder="kg / Stück"><input id="o_tot" size="8" placeholder="oder Gesamtpreis €"><button type="button" onclick="addItem()">Hinzufügen</button></div>`+
   (d.items.length?itemsTable(d.items,true):'')+`<div class="row"><button type="button" onclick="saveOrder()">Bestellung speichern</button></div></form>`;
-  const n1=db.orders.filter(o=>!o.done).length,n2=db.orders.length-n1,list=db.orders.filter(o=>ui.of==='done'?o.done:!o.done).map(o=>`<div class="box ${o.done?'done-o':''}"><div class="row"><strong>${esc(o.name)}</strong><small>${esc(o.cat)}, ${fmtD(o.date)}</small><span style="flex:1"></span><button class="ghost" onclick="doneO('${o.id}')">${o.done?'Wieder öffnen':'Als erledigt markieren'}</button><button class="x" onclick="del('o','${o.id}')" aria-label="löschen">×</button></div><small>${[o.email,o.tel,o.adr].filter(Boolean).map(esc).join(', ')}</small>`+
+  const n1=db.orders.filter(o=>!o.done).length,n2=db.orders.length-n1,list=db.orders.filter(o=>ui.of==='done'?o.done:!o.done).map(o=>`<div class="box ${o.done?'done-o':''}"><div class="row"><strong>${esc(o.name)}</strong><small>${esc(o.cat)}, ${fmtD(o.date)}</small><label class="fl">Abholung / Lieferung <input type="date" class="dt" value="${esc(o.due||'')}" onchange="setO('${o.id}','due',this.value)"></label><span style="flex:1"></span><button class="ghost" onclick="doneO('${o.id}')">${o.done?'Wieder öffnen':'Als erledigt markieren'}</button><button class="x" onclick="del('o','${o.id}')" aria-label="löschen">×</button></div><small>${[o.email,o.tel,o.adr].filter(Boolean).map(esc).join(', ')}</small>`+
    (o.cat==='Pakete'?`<small>Paket: ${esc(o.l)}×${esc(o.b)}×${esc(o.h)} cm, ${esc(o.w)} kg <label><input type="checkbox" ${o.fertig?'checked':''} onchange="setO('${o.id}','fertig',this.checked)"> fertig</label></small>`:'')+itemsTable(o.items)+`</div>`).join('');
   return `<h1>Bestellungen</h1>${tb('o','+ Neue Bestellung')}${ui.f.o?`<h2>Neue Bestellung</h2>${form}`:''}<div class="row"><button class="${ui.of==='open'?'':'ghost'}" onclick="ui.of='open';R()">Offen (${n1})</button><button class="${ui.of==='done'?'':'ghost'}" onclick="ui.of='done';R()">Erledigt (${n2})</button></div>${list||'<p class="empty">Keine Bestellungen in dieser Liste.</p>'}`;
  },
