@@ -25,7 +25,7 @@ input,select{font:inherit;padding:.4rem .5rem;border:1px solid var(--line);borde
 form,.box{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:1rem;margin:0 0 1rem}
 .row{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin:.3rem 0}
 ul.tl{list-style:none;padding:0;margin:0}
-.task{display:grid;grid-template-columns:auto 1fr auto auto;gap:.6rem;align-items:center;background:var(--card);border:1px solid var(--line);border-left:5px solid var(--line);border-radius:8px;padding:.55rem .7rem;margin-bottom:.4rem}
+.task{display:grid;grid-template-columns:auto 1fr auto auto auto;gap:.6rem;align-items:center;background:var(--card);border:1px solid var(--line);border-left:5px solid var(--line);border-radius:8px;padding:.55rem .7rem;margin-bottom:.4rem}
 .task.ev{border-left-color:var(--red)}.task.ev span{color:var(--red);font-weight:600}
 .task.done{opacity:.45}.task.done span{text-decoration:line-through}
 .task input[type=checkbox]{width:1.3rem;height:1.3rem}
@@ -39,7 +39,7 @@ tr.dim{opacity:.45}.pr{width:5.5rem;text-align:right}.av label{display:inline-bl
 @media(max-width:760px){
  body{grid-template-columns:1fr;padding-bottom:calc(60px + env(safe-area-inset-bottom,0px))}
  nav{position:fixed;inset:auto 0 0 0;height:auto;display:flex;padding:.3rem .3rem calc(.3rem + env(safe-area-inset-bottom,0px));z-index:5}
- .logo{display:none}nav button{text-align:center;padding:.5rem .1rem;font-size:.72rem;flex:1}
+ .logo{display:none}nav{overflow-x:auto}nav button{text-align:center;padding:.5rem .6rem;font-size:.72rem;flex:0 0 auto;width:auto;white-space:nowrap}
  main{padding:1rem 1rem 2rem}.task{grid-template-columns:auto 1fr auto}.task select{display:none}
 }
 h3{font-size:1rem;margin:1rem 0 .3rem}details{margin:.4rem 0}summary{cursor:pointer;font-weight:600;padding:.3rem 0}details.sub{margin-left:1rem}
@@ -57,6 +57,12 @@ h3{font-size:1rem;margin:1rem 0 .3rem}details{margin:.4rem 0}summary{cursor:poin
 .ce.done{opacity:.45;text-decoration:line-through}
 .cm{font-size:.72rem;color:var(--muted)}
 @media(max-width:760px){.cd{min-height:3.6rem}.ce{font-size:0;height:.45rem;padding:0;border-radius:99px;background:var(--red)}.ce.done{background:#d9a6a2}.cm{display:none}}
+textarea{font:inherit;width:100%;padding:.4rem .5rem;border:1px solid var(--line);border-radius:6px;margin:.3rem 0;background:#fff}
+.pre{white-space:pre-wrap;margin:.2rem 0 .6rem}
+.ph{position:relative;display:flex;width:56px;height:56px;border:1px dashed var(--line);border-radius:6px;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;color:var(--muted);font-size:.75rem;background:#fff}
+.ph img{width:100%;height:100%;object-fit:cover}.ph:focus-within{outline:3px solid #e0a800}
+.ph input{position:absolute;opacity:0;width:1px;height:1px}
+.fl{display:flex;flex-direction:column;font-size:.75rem;color:var(--muted);gap:.1rem}
 #pr{display:none}
 @media print{body>*:not(#pr){display:none!important}#pr{display:block}body{display:block;background:#fff}}
 </style>
@@ -92,11 +98,11 @@ function seed(){
  add('Apfelsaft','Stk',[['Apfelsaft 1,5 l',4.5],['Apfelsaft 3 l',8.5]]);
  const sy=[];['Marille','Quitte','Holunder','Palabirne','Zitronenmelisse'].forEach(f=>{sy.push(['Sirup '+f+' 500 ml',8.5]);sy.push(['Sirup '+f+' 250 ml',5])});sy.push(['Sirup Johannisbeere 250 ml',5]);
  add('Sirup','Stk',sy);
- return{tasks:[],events:[],products:P,customers:[],orders:[],ocats:['Frischfleisch','Pakete','Hofladen (Abholung)'],...extSeed()};
+ return{tasks:[],events:[],products:fixProd(P),customers:[],orders:[],ocats:['Frischfleisch','Pakete','Hofladen (Abholung)'],...extSeed(),...newSeed()};
 }
-function load(){try{const d=JSON.parse(localStorage.getItem(K));if(d&&d.products)return Object.assign(extSeed(),d)}catch(e){}return seed()}
+function load(){try{const d=JSON.parse(localStorage.getItem(K));if(d&&d.products){fixProd(d.products);return Object.assign(newSeed(),extSeed(),d)}}catch(e){}return seed()}
 let db=load(),view='home',ui={d:newDraft(),openForm:false};
-function save(){try{localStorage.setItem(K,JSON.stringify(db))}catch(e){}}
+function save(){try{localStorage.setItem(K,JSON.stringify(db))}catch(e){if(!save.w){save.w=1;alert('Der Speicher im Browser ist voll oder gesperrt. Änderungen können beim Schließen verloren gehen. Bitte kleinere oder weniger Fotos verwenden.')}}}
 function newDraft(){return{items:[],cat:'Frischfleisch',name:'',email:'',tel:'',adr:'',l:'',b:'',h:'',w:'',fertig:false}}
 
 /* ---------- Arbeiten (inkl. Kalender, Pakete) ---------- */
@@ -108,7 +114,7 @@ function allTasks(){
 }
 function row(t){
  return `<li class="task ${t.done?'done':''} ${t.k==='e'?'ev':''}"><input type="checkbox" ${t.done?'checked':''} onchange="tog('${t.k}','${t.id}')" aria-label="erledigt"><div><span>${esc(t.text)}</span>${t.date?`<small>Termin am ${fmtD(t.date)}</small>`:''}${t.note?`<small>${esc(t.note)}</small>`:''}</div>`+
- (t.k==='t'?`<select onchange="setP('${t.id}',this.value)" aria-label="Priorität">${[1,2,3].map(p=>`<option value="${p}" ${t.p==p?'selected':''}>${PL[p]}</option>`).join('')}</select><button class="x" onclick="del('t','${t.id}')" aria-label="löschen">×</button>`:'')+`</li>`;
+ (t.k==='t'?`<select onchange="setP('${t.id}',this.value)" aria-label="Priorität">${[1,2,3].map(p=>`<option value="${p}" ${t.p==p?'selected':''}>${PL[p]}</option>`).join('')}</select><button class="x" onclick="editTask('${t.id}')" aria-label="bearbeiten">✎</button><button class="x" onclick="del('t','${t.id}')" aria-label="löschen">×</button>`:'')+`</li>`;
 }
 function tog(k,id){
  if(k==='t'){const t=db.tasks.find(x=>x.id===id);t.done=!t.done}
@@ -116,6 +122,7 @@ function tog(k,id){
  if(k==='s'){const o=db.orders.find(x=>x.id===id);o.shipped=!o.shipped}
  save();R();
 }
+function editTask(id){const t=db.tasks.find(x=>x.id===id),n=prompt('Arbeit bearbeiten:',t.text);if(n&&n.trim()){t.text=n.trim();save();R()}}
 function setP(id,p){db.tasks.find(x=>x.id===id).p=+p;save();R()}
 function del(k,id){
  if(!confirm('Wirklich löschen?'))return;
@@ -188,6 +195,12 @@ function itemsTable(items,rm){return `<table>${items.map((i,n)=>`<tr><td>${esc(i
 function setO(id,k,v){db.orders.find(x=>x.id===id)[k]=v;save();R()}
 
 /* ---------- Arbeiten für Dritte ---------- */
+function mixData(){return [{"name": "Rind", "cols": ["Schnitzl", "Beinscheiben", "Beinfleisch", "Braten", "Gulasch", "Hals", "Tellerfleisch", "Faschierts", "Rostbeef"], "rows": [{"l": "5 kg", "v": [0.7, 0.35, 0.4, 0.6, 0.5, 0.4, 0.45, 1.25, 0.35]}, {"l": "6 kg", "v": [0.8, 0.4, 0.5, 0.7, 0.6, 0.5, 0.55, 1.5, 0.45]}, {"l": "7 kg", "v": [1.0, 0.5, 0.5, 0.8, 0.7, 0.6, 0.7, 1.7, 0.5]}, {"l": "8 kg", "v": [1.1, 0.55, 0.6, 0.95, 0.8, 0.7, 0.7, 2.0, 0.6]}, {"l": "9 kg", "v": [1.3, 0.6, 0.7, 1.1, 0.9, 0.7, 0.8, 2.2, 0.7]}, {"l": "10 kg", "v": [1.4, 0.7, 0.75, 1.2, 1.0, 0.8, 0.9, 2.5, 0.75]}, {"l": "15 kg", "v": [2.1, 1.0, 1.1, 1.8, 1.5, 1.2, 1.4, 3.8, 1.1]}, {"l": "20 kg", "v": [2.8, 1.4, 1.5, 2.4, 2.0, 1.6, 1.8, 5.0, 1.5]}, {"l": "25 kg", "v": [3.5, 1.7, 1.9, 3.0, 2.5, 2.0, 2.3, 6.2, 1.9]}, {"l": "30 kg", "v": [4.2, 2.1, 2.2, 3.5, 3.0, 2.5, 2.8, 7.5, 2.2]}, {"l": "35 kg", "v": [4.9, 2.4, 2.6, 4.2, 3.5, 2.9, 3.2, 8.7, 2.6]}, {"l": "40 kg", "v": [5.5, 2.8, 3.0, 4.7, 4.0, 3.3, 3.7, 10.0, 3.0]}, {"l": "45 kg", "v": [6.3, 3.1, 3.4, 5.3, 4.5, 3.7, 4.1, 11.2, 3.4]}, {"l": "50 kg", "v": [7.0, 3.5, 3.7, 5.9, 5.0, 4.1, 4.6, 12.5, 3.7]}]}, {"name": "Hirsch", "cols": ["Schnitzl", "Braten", "Gulasch", "Faschierts", "Rücken"], "rows": [{"l": "5 kg", "v": [1.1, 1.0, 0.6, 1.9, 0.4]}, {"l": "6 kg", "v": [1.32, 1.2, 0.72, 2.28, 0.48]}, {"l": "7 kg", "v": [1.54, 1.4, 0.84, 2.66, 0.56]}, {"l": "8 kg", "v": [1.76, 1.6, 0.96, 3.04, 0.64]}, {"l": "9 kg", "v": [1.98, 1.8, 1.08, 3.42, 0.72]}, {"l": "10 kg", "v": [2.2, 2.0, 1.2, 3.8, 0.8]}, {"l": "15 kg", "v": [3.3, 3.0, 1.8, 5.7, 1.2]}, {"l": "16 kg", "v": [3.52, 3.2, 1.92, 6.08, 1.28]}, {"l": "17 kg", "v": [3.74, 3.4, 2.04, 6.46, 1.36]}, {"l": "18 kg", "v": [3.96, 3.6, 2.16, 6.84, 1.44]}, {"l": "19 kg", "v": [4.18, 3.8, 2.28, 7.22, 1.52]}, {"l": "20 kg", "v": [4.4, 4.0, 2.4, 7.6, 1.6]}, {"l": "25 kg", "v": [5.5, 5.0, 3.0, 9.5, 2.0]}, {"l": "30 kg", "v": [6.6, 6.0, 3.6, 11.4, 2.4]}, {"l": "35 kg", "v": [7.7, 7.0, 4.2, 13.3, 2.8]}, {"l": "40 kg", "v": [8.8, 8.0, 4.8, 15.2, 3.2]}, {"l": "45 kg", "v": [9.9, 9.0, 5.4, 17.1, 3.6]}]}, {"name": "Reh", "cols": ["Schnitzl", "Braten", "Gulasch", "Faschierts", "Rücken"], "rows": [{"l": "2 kg", "v": [0.36, 0.32, 0.28, 0.8, 0.24]}, {"l": "3 kg", "v": [0.54, 0.48, 0.42, 1.2, 0.36]}, {"l": "4 kg", "v": [0.72, 0.64, 0.56, 1.6, 0.48]}, {"l": "5 kg", "v": [0.9, 0.8, 0.7, 2.0, 0.6]}, {"l": "6 kg", "v": [1.08, 0.96, 0.84, 2.4, 0.72]}, {"l": "7 kg", "v": [1.26, 1.12, 0.98, 2.8, 0.84]}, {"l": "8 kg", "v": [1.44, 1.28, 1.12, 3.2, 0.96]}, {"l": "9 kg", "v": [1.62, 1.44, 1.26, 3.6, 1.08]}]}, {"name": "Truthahn", "cols": ["Schnitzl", "Brust", "Hax", "Braten", "Fliegl", "Faschierts"], "rows": [{"l": "pro Truthahn", "v": [3.1, 0.83, 0.66, 1.1, 0.6, 0.8]}]}, {"name": "Schwein", "cols": [], "rows": []}]}
+function newSeed(){return{recipes:[],mix:mixData(),pf:[],pm:[],rn:0}}
+function fixProd(a){
+ const N={'Rindkaminwurz 120 g (2/3 Rind)':'Rindkaminwurz 120 gr. (2/3 Rind)','Hirschkaminwurz 120 g':'Hirschkaminwurz 120 gr. (50 % Hirsch)','Wildschwein 120 g':'Wildschwein 120 gr. (50 % Wildschwein)','Frische Hauswurst 120 g':'frische Hauswurst 120 gr. (2/3 Rind)','Grillwürstchen 60 g':'Grillwürstchen 60 gr. (2/3 Rind)','Geräucherte Hauswurst 120 g':'geräucherte Hauswurst 120 gr. (2/3 Rind)','Hirschsalami':'Hirschsalami (50% Hirsch)','Wildschweinsalami':'Wildschweinsalami (50 % Wildschwein)'};
+ a.forEach(p=>{if(N[p.name])p.name=N[p.name]});return a;
+}
 function extSeed(){
  const P=[],a=(cat,u,l)=>l.forEach(n=>{const x=Array.isArray(n);P.push({id:uid(),cat,name:x?n[0]:n,unit:u,price:x?n[1]:null,changed:x?'2026-11-18':null})});
  a('Handarbeit','Std',[['Handarbeit',25]]);
@@ -247,10 +260,44 @@ function extBox(e){
  return `<div class="box"><h2 style="margin-top:0">${esc(cn(e))}</h2>${form}${cp}<h3>Gesamtübersicht</h3>${jl||'<p class="empty">Keine offenen Arbeiten.</p>'}<div class="row sum"><span style="flex:1">Summe offen</span>${nf(tot)} €</div>${ctl}${kvh?`<h3>Kostenvoranschläge</h3>${kvh}`:''}</div>`;
 }
 
+
+/* ---------- Rezepte ---------- */
+const RG={'Fleischwaren':['Salami','Kaminwurzen','Speck','Bündnerfleisch'],'Marmeladen':['Standard-Marmeladen','Spezielle Marmeladen'],'Gelees':[],'Sirups':[]};
+function saveRec(f){
+ const [g,sb]=f.cat.value.split(' › '),o={grp:g,sub:sb||'',title:f.title.value.trim(),zut:f.zut.value,zub:f.zub.value};
+ if(!o.title)return false;
+ if(ui.re){Object.assign(db.recipes.find(r=>r.id===ui.re),o)}else db.recipes.push({id:uid(),...o});
+ ui.re=null;save();R();return false;
+}
+function editRec(id){ui.re=id;R();scrollTo(0,0)}
+function delRec(id){if(!confirm('Rezept löschen?'))return;db.recipes=db.recipes.filter(r=>r.id!==id);save();R()}
+/* ---------- Mischpakete ---------- */
+function setMix(t,r,c,v){const n=num(v);db.mix[t].rows[r].v[c]=isNaN(n)?null:n;save();R()}
+function addMixRow(t){const l=prompt('Neue Paketgröße (z. B. 12 kg):');if(!l)return;db.mix[t].rows.push({l:l.trim(),v:db.mix[t].cols.map(()=>null)});save();R()}
+function addMixCol(t){const c=prompt('Neuer Fleischteil (z. B. Hals):');if(!c)return;db.mix[t].cols.push(c.trim());db.mix[t].rows.forEach(r=>r.v.push(null));save();R()}
+/* ---------- Rechnungen ---------- */
+function doneO(id){const o=db.orders.find(x=>x.id===id);o.done=!o.done;if(o.done){if(!o.rno){db.rn=(db.rn||0)+1;o.rno='R '+today().slice(0,4)+'/'+String(db.rn).padStart(3,'0')}o.inv=o.inv||'schreiben'}save();R()}
+function setInv(id,st){db.orders.find(x=>x.id===id).inv=st;save();R()}
+function pdfInv(id){
+ const o=db.orders.find(x=>x.id===id);
+ $('#pr').innerHTML=`<h1>Rechnung ${esc(o.rno||'')}</h1><p>${fmtD(o.date)}<br>${esc(o.name)}<br>${esc(o.adr||'')}</p><table>${o.items.map(i=>`<tr><td>${esc(i.name)}</td><td class="n">${nf(i.qty).replace(',00','')} ${i.unit}</td><td class="n">${nf(i.total)} €</td></tr>`).join('')}<tr><td colspan="2" class="sum">Gesamt</td><td class="n sum">${nf(sum(o.items))} €</td></tr></table><p>${o.inv==='bezahlt'?'Bezahlt':'Noch nicht bezahlt'}</p>`;
+ document.title=(o.rno||'Rechnung').replace('/','-')+' '+o.name;window.print();
+}
+/* ---------- Produktion ---------- */
+const SZ=['Glas 215 g','Glas 250 g','Glas 360 g','Flasche 250 ml','Flasche 500 ml'];
+function pNo(l,d){const y=(d||today()).slice(0,4);let m=0;l.forEach(x=>{if(x.date.slice(0,4)===y)m=Math.max(m,parseInt(x.no)||0)});return (m+1)+'/'+y.slice(2)}
+function addPF(f){const w=f.what.value.trim(),kg=num(f.kg.value);if(!w||isNaN(kg)||!f.date.value){alert('Bitte Datum, „Was?“ und die Menge in kg eingeben.');return false}
+ db.pf.push({id:uid(),no:pNo(db.pf,f.date.value),date:f.date.value,what:w,kg,rind:f.rind.value,wild:f.wild.value,mager:f.mager.value,speck:f.speck.value});save();R();return false}
+function addPM(f){const w=f.what.value.trim(),fr=num(f.fruit.value),fills={};SZ.forEach((z,i)=>{const n=parseInt(f['s'+i].value);if(n>0)fills[z]=n});
+ if(!w||!f.date.value||!Object.keys(fills).length){alert('Bitte Datum, „Was?“ und mindestens eine abgefüllte Größe mit Stückzahl eingeben.');return false}
+ db.pm.push({id:uid(),no:pNo(db.pm,f.date.value),date:f.date.value,what:w,fruit:isNaN(fr)?null:fr,fills,rest:f.rest.value.trim()});save();R();return false}
+function delP(k,id){if(!confirm('Eintrag löschen?'))return;db[k]=db[k].filter(x=>x.id!==id);save();R()}
+function setImg(id,inp){const f=inp.files[0];if(!f)return;const fr=new FileReader();fr.onload=()=>{const im=new Image();im.onload=()=>{const r=Math.min(1,240/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*r);c.height=Math.round(im.height*r);c.getContext('2d').drawImage(im,0,0,c.width,c.height);db.products.find(x=>x.id===id).img=c.toDataURL('image/jpeg',.75);save();R()};im.src=fr.result};fr.readAsDataURL(f)}
+
 /* ---------- Ansichten ---------- */
 const V={
  home(){
-  const open=allTasks().filter(t=>!t.done).sort((a,b)=>a.p-b.p).slice(0,10);
+  const open=allTasks().filter(t=>!t.done).sort((a,b)=>a.p-b.p);
   return `<h1>Anstehende Arbeiten</h1>`+(open.length?`<ul class="tl">${open.map(row).join('')}</ul>`:'<p class="empty">Nichts offen. Neue Arbeiten legst du unter „Arbeiten“ an.</p>');
  },
  tasks(){
@@ -263,25 +310,25 @@ const V={
  cal(){
   const ev=[...db.events].sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time)),sel=ui.sel||today(),sd=ev.filter(e=>e.date===sel);
   const li=e=>`<li class="task ev ${e.done?'done':''}"><span></span><div><span>${esc(e.title)}</span><small>${fmtD(e.date)}${e.time?', '+e.time+' Uhr':''}</small></div><span></span><button class="x" onclick="del('e','${e.id}')" aria-label="löschen">×</button></li>`;
-  return `<h1>Kalender</h1>${calGrid()}<form onsubmit="return addEvent(this)" class="row"><input name="title" placeholder="Termin" required style="flex:1;min-width:10rem"><input type="date" name="date" value="${sel}" required><input type="time" name="time"><button>Termin eintragen</button></form>`+
+  return `<h1>Kalender</h1>${calGrid()}<form onsubmit="return addEvent(this)" class="row"><input name="title" placeholder="Termin" required style="flex:1;min-width:10rem"><input type="date" name="date" value="${sel}" required><input type="time" name="time" required><button>Termin eintragen</button></form>`+
   `<h2>Termine am ${fmtD(sel)}</h2>`+(sd.length?`<ul class="tl">${sd.map(li).join('')}</ul>`:'<p class="empty">An diesem Tag ist nichts eingetragen.</p>')+
   `<h2>Alle Termine</h2>`+(ev.length?`<ul class="tl">${ev.map(li).join('')}</ul>`:'<p class="empty">Noch keine Termine.</p>')+
   `<p><small>Termine erscheinen automatisch unter „Arbeiten“: ab 2 Wochen vorher mit mittlerer, 2 Tage vorher mit hoher Priorität.</small></p>`;
  },
  orders(){
   const d=ui.d,av=db.products.filter(p=>p.avail==='ja'),cats=[...new Set(av.map(p=>p.cat))];
-  const form=`<form onsubmit="return false"><div class="row"><input id="o_name" list="cl" placeholder="Name" value="${esc(d.name)}" onchange="suggest(this)"><datalist id="cl">${db.customers.map(c=>`<option value="${esc(c.name)}">`).join('')}</datalist><input id="o_email" placeholder="E-Mail" value="${esc(d.email)}" onchange="suggest(this)"><input id="o_tel" placeholder="Telefon" value="${esc(d.tel)}" onchange="suggest(this)"><input id="o_adr" placeholder="Adresse" value="${esc(d.adr)}" style="flex:1;min-width:12rem"></div>`+
+  const form=`<form onsubmit="return false"><div class="row"><input id="o_name" list="cl" placeholder="Name" value="${esc(d.name)}" onchange="suggest(this)"><datalist id="cl">${db.customers.map(c=>`<option value="${esc(c.name)}">`).join('')}</datalist><datalist id="cl_e">${db.customers.filter(c=>c.email).map(c=>`<option value="${esc(c.email)}">`).join('')}</datalist><input id="o_email" list="cl_e" placeholder="E-Mail" value="${esc(d.email)}" onchange="suggest(this)"><datalist id="cl_t">${db.customers.filter(c=>c.tel).map(c=>`<option value="${esc(c.tel)}">`).join('')}</datalist><input id="o_tel" list="cl_t" placeholder="Telefon" value="${esc(d.tel)}" onchange="suggest(this)"><input id="o_adr" placeholder="Adresse" value="${esc(d.adr)}" style="flex:1;min-width:12rem"></div>`+
   `<div class="row"><select id="o_cat" onchange="readForm();R()">${db.ocats.map(c=>`<option ${c===d.cat?'selected':''}>${esc(c)}</option>`).join('')}</select><button type="button" class="ghost" onclick="addOCat()" aria-label="Unterteilung hinzufügen">+</button></div>`+
   (d.cat==='Pakete'?`<div class="row"><input id="o_l" size="5" placeholder="Länge cm" value="${esc(d.l)}"><input id="o_b" size="5" placeholder="Breite cm" value="${esc(d.b)}"><input id="o_h" size="5" placeholder="Höhe cm" value="${esc(d.h)}"><input id="o_w" size="5" placeholder="Gewicht kg" value="${esc(d.w)}"><label><input type="checkbox" id="o_f" ${d.fertig?'checked':''}> Paket ist fertig</label></div>`:'')+
   `<div class="row"><select id="o_prod">${cats.map(c=>`<optgroup label="${esc(c)}">${av.filter(p=>p.cat===c).map(p=>`<option value="${p.id}">${esc(p.name)} (${p.price==null?'auf Anfrage':nf(p.price)+' €/'+p.unit})</option>`).join('')}</optgroup>`).join('')}</select><input id="o_qty" size="6" placeholder="kg / Stück"><input id="o_tot" size="8" placeholder="oder Gesamtpreis €"><button type="button" onclick="addItem()">Hinzufügen</button></div>`+
   (d.items.length?itemsTable(d.items,true):'')+`<div class="row"><button type="button" onclick="saveOrder()">Bestellung speichern</button></div></form>`;
-  const list=db.orders.map(o=>`<div class="box ${o.done?'done-o':''}"><div class="row"><strong>${esc(o.name)}</strong><small>${esc(o.cat)}, ${fmtD(o.date)}</small><span style="flex:1"></span><button class="ghost" onclick="setO('${o.id}','done',${!o.done})">${o.done?'Wieder öffnen':'Als erledigt markieren'}</button><button class="x" onclick="del('o','${o.id}')" aria-label="löschen">×</button></div><small>${[o.email,o.tel,o.adr].filter(Boolean).map(esc).join(', ')}</small>`+
+  const list=db.orders.map(o=>`<div class="box ${o.done?'done-o':''}"><div class="row"><strong>${esc(o.name)}</strong><small>${esc(o.cat)}, ${fmtD(o.date)}</small><span style="flex:1"></span><button class="ghost" onclick="doneO('${o.id}')">${o.done?'Wieder öffnen':'Als erledigt markieren'}</button><button class="x" onclick="del('o','${o.id}')" aria-label="löschen">×</button></div><small>${[o.email,o.tel,o.adr].filter(Boolean).map(esc).join(', ')}</small>`+
    (o.cat==='Pakete'?`<small>Paket: ${esc(o.l)}×${esc(o.b)}×${esc(o.h)} cm, ${esc(o.w)} kg <label><input type="checkbox" ${o.fertig?'checked':''} onchange="setO('${o.id}','fertig',this.checked)"> fertig</label></small>`:'')+itemsTable(o.items)+`</div>`).join('');
   return `<h1>Bestellungen</h1><h2>Neue Bestellung</h2>${form}<h2>Alle Bestellungen</h2>${list||'<p class="empty">Noch keine Bestellungen.</p>'}`;
  },
  products(){
   const cats=[...new Set(db.products.map(p=>p.cat))];
-  return `<h1>Produkte</h1>`+cats.map((c,i)=>`<h2>${esc(c)}</h2><table>${db.products.filter(p=>p.cat===c).map(p=>`<tr class="${p.avail==='aus'?'dim':''}"><td>${esc(p.name)}</td><td class="n"><input class="pr" value="${p.price==null?'':nf(p.price)}" placeholder="Anfrage" onchange="setPrice('${p.id}',this.value)" aria-label="Preis"> €/${p.unit}<small>${p.changed?'geändert '+fmtD(p.changed):''}</small></td><td class="av">${[['ja','verfügbar'],['nein','nicht verfügbar'],['aus','ausgeblendet']].map(([a,l])=>`<label><input type="radio" name="a${p.id}" ${p.avail===a?'checked':''} onchange="setAv('${p.id}','${a}')"> ${l}</label>`).join('')}</td></tr>`).join('')}</table><p><button class="ghost" onclick="addProd(${i})">+ Produkt hinzufügen</button></p>`).join('')+`<p><button onclick="addCat()">+ Neue Kategorie</button></p>`;
+  return `<h1>Produkte</h1>`+cats.map((c,i)=>`<h2>${esc(c)}</h2><table>${db.products.filter(p=>p.cat===c).map(p=>`<tr class="${p.avail==='aus'?'dim':''}"><td style="width:64px"><label class="ph">${p.img?`<img src="${p.img}" alt="Foto ${esc(p.name)}">`:'<span>Foto</span>'}<input type="file" accept="image/*" onchange="setImg('${p.id}',this)" aria-label="Foto für ${esc(p.name)}"></label></td><td>${esc(p.name)}</td><td class="n"><input class="pr" value="${p.price==null?'':nf(p.price)}" placeholder="Anfrage" onchange="setPrice('${p.id}',this.value)" aria-label="Preis"> €/${p.unit}<small>${p.changed?'geändert '+fmtD(p.changed):''}</small></td><td class="av">${[['ja','verfügbar'],['nein','nicht verfügbar'],['aus','ausgeblendet']].map(([a,l])=>`<label><input type="radio" name="a${p.id}" ${p.avail===a?'checked':''} onchange="setAv('${p.id}','${a}')"> ${l}</label>`).join('')}</td></tr>`).join('')}</table><p><button class="ghost" onclick="addProd(${i})">+ Produkt hinzufügen</button></p>`).join('')+`<p><button onclick="addCat()">+ Neue Kategorie</button></p>`;
  },
  ext(){
   const cats=[...new Set(db.prices.map(p=>p.cat))];
@@ -290,12 +337,48 @@ const V={
   const top=`<div class="row"><select id="x_new"><option value="">Kunde aus der Liste öffnen</option>${fr.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select><button onclick="openExt()">Öffnen</button><button class="ghost" onclick="newExt()">+ Neuer Kunde</button></div>`;
   return `<h1>Arbeiten für Dritte</h1>${base}<h2>Kunden</h2>${top}`+(db.ext.length?db.ext.map(extBox).join(''):'<p class="empty">Noch kein Kunde geöffnet.</p>');
  },
+ rec(){
+  const e=ui.re?db.recipes.find(r=>r.id===ui.re):null,cur=e?(e.sub?e.grp+' › '+e.sub:e.grp):'';
+  const opts=Object.entries(RG).flatMap(([g,l])=>l.length?l.map(x=>g+' › '+x):[g]);
+  const form=`<form onsubmit="return saveRec(this)"><div class="row"><select name="cat" aria-label="Kategorie">${opts.map(o=>`<option ${o===cur?'selected':''}>${o}</option>`).join('')}</select><input name="title" placeholder="Name des Rezepts" required value="${esc(e?e.title:'')}" style="flex:1;min-width:10rem"></div><textarea name="zut" rows="5" placeholder="Zutaten (eine pro Zeile)">${esc(e?e.zut:'')}</textarea><textarea name="zub" rows="6" placeholder="Zubereitung">${esc(e?e.zub:'')}</textarea><div class="row"><button>${e?'Änderung speichern':'Rezept speichern'}</button>${e?'<button type="button" class="ghost" onclick="ui.re=null;R()">Abbrechen</button>':''}</div></form>`;
+  const item=r=>`<details><summary>${esc(r.title)}</summary><h3>Zutaten</h3><div class="pre">${esc(r.zut)||'–'}</div><h3>Zubereitung</h3><div class="pre">${esc(r.zub)||'–'}</div><div class="row"><button class="ghost" onclick="editRec('${r.id}')">Bearbeiten</button><button class="ghost" onclick="delRec('${r.id}')">Löschen</button></div></details>`;
+  const list=Object.entries(RG).map(([g,subs])=>`<h2>${g}</h2>`+(subs.length?subs.map(sb=>{const l=db.recipes.filter(r=>r.grp===g&&r.sub===sb);return `<h3>${sb}</h3>`+(l.map(item).join('')||'<p class="empty">Noch kein Rezept.</p>')}).join(''):(db.recipes.filter(r=>r.grp===g).map(item).join('')||'<p class="empty">Noch kein Rezept.</p>'))).join('');
+  return `<h1>Rezepte</h1><h2>${e?'Rezept bearbeiten':'Neues Rezept'}</h2>${form}${list}`;
+ },
+ mix(){
+  return `<h1>Mischpakete</h1><p><small>Mengen in kg je Paketgröße. Die Zahlen lassen sich direkt ändern, die Summe rechnet mit.</small></p>`+db.mix.map((t,ti)=>`<h2>Mischpaket ${esc(t.name)}</h2>`+(t.cols.length?`<div style="overflow-x:auto"><table><tr><th>Paket</th>${t.cols.map(c=>`<th class="n">${esc(c)}</th>`).join('')}<th class="n">Summe</th></tr>${t.rows.map((r,ri)=>`<tr><td>${esc(r.l)}</td>${t.cols.map((c,ci)=>`<td class="n"><input class="pr" style="width:4.2rem" value="${r.v[ci]==null?'':nf(r.v[ci])}" onchange="setMix(${ti},${ri},${ci},this.value)" aria-label="${esc(t.name+' '+r.l+' '+c)}"></td>`).join('')}<td class="n"><strong>${nf(r.v.reduce((a,x)=>a+(x||0),0))}</strong></td></tr>`).join('')}</table></div>`:'<p class="empty">Noch keine Angaben. Mit „+ Fleischteil“ und „+ Größe“ aufbauen.</p>')+`<div class="row"><button class="ghost" onclick="addMixRow(${ti})">+ Größe</button><button class="ghost" onclick="addMixCol(${ti})">+ Fleischteil</button></div>`).join('');
+ },
+ inv(){
+  const od=db.orders.filter(o=>o.done),g=st=>od.filter(o=>(o.inv||'schreiben')===st),kv=db.kvs.filter(k=>k.confirmed);
+  const oc=o=>{const st=o.inv||'schreiben',b=[];
+   if(st==='schreiben')b.push(`<button onclick="setInv('${o.id}','kassieren')">Rechnung geschrieben</button>`);
+   if(st!=='bezahlt')b.push(`<button class="ghost" onclick="setInv('${o.id}','bezahlt')">Als bezahlt markieren</button>`);
+   if(st==='kassieren')b.push(`<button class="ghost" onclick="setInv('${o.id}','schreiben')">Zurück zu „Noch zu schreiben“</button>`);
+   if(st==='bezahlt')b.push(`<button class="ghost" onclick="setInv('${o.id}','kassieren')">Wieder öffnen</button>`);
+   b.push(`<button class="ghost" onclick="pdfInv('${o.id}')">Als PDF speichern</button>`);
+   return `<div class="box"><div class="row"><strong>${esc(o.rno||'Rechnung')}</strong><small>${fmtD(o.date)}</small><strong>${esc(o.name)}</strong><span style="flex:1"></span><strong>${nf(sum(o.items))} €</strong></div><small>${[o.email,o.tel,o.adr].filter(Boolean).map(esc).join(', ')}</small>${itemsTable(o.items)}<div class="row">${b.join('')}</div></div>`};
+  const kc=k=>{const e=fe(k.eid),t=e.jobs.filter(j=>j.qid===k.id).reduce((a,j)=>a+jt(j),0);return `<div class="box"><div class="row"><strong>${esc(k.no)}</strong><small>${fmtD(k.date)}</small><strong>${esc(cn(e))}</strong><span class="tag">Arbeiten für Dritte</span><span style="flex:1"></span><strong>${nf(t)} €</strong></div><div class="row"><button class="ghost" onclick="paidKV('${k.id}')">${k.paid?'Wieder öffnen':'Als bezahlt markieren'}</button><button class="ghost" onclick="pdfKV('${k.id}')">Als PDF speichern</button></div></div>`};
+  const sec=(t,a,b)=>`<h2>${t}</h2>`+((a.length+b.length)?a.map(oc).join('')+b.map(kc).join(''):'<p class="empty">Nichts offen.</p>');
+  return `<h1>Rechnungen</h1><p><small>Eine Bestellung erscheint hier, sobald du sie unter „Bestellungen“ als erledigt markierst.</small></p>`+sec('Noch zu schreiben',g('schreiben'),[])+sec('Noch zu kassieren',g('kassieren'),kv.filter(k=>!k.paid))+sec('Bezahlt',g('bezahlt'),kv.filter(k=>k.paid));
+ },
+ prod(){
+  const nm=t=>t.replace(/\s+\d+([.,]\d+)?\s*(gr?\.?|ml|l)\b.*$/i,'').trim(),dl=(id,cats,used)=>`<datalist id="${id}">${[...new Set([...db.products.filter(p=>cats.includes(p.cat)).map(p=>nm(p.name)),...used])].map(x=>`<option value="${esc(x)}">`).join('')}</datalist>`;
+  const grp=(l,f)=>{const m={};l.forEach(x=>{const k=x.what.trim().toLowerCase();(m[k]=m[k]||{what:x.what.trim(),n:0,fr:0,z:{}});f(m[k],x)});return Object.values(m).sort((a,b)=>a.what.localeCompare(b.what,'de'))};
+  const fl=(t,i)=>`<label class="fl">${t}${i}</label>`,dI=n=>`<input type="date" name="${n}">`;
+  const pf=[...db.pf].sort((a,b)=>a.date.localeCompare(b.date)||parseInt(a.no)-parseInt(b.no)),pm=[...db.pm].sort((a,b)=>a.date.localeCompare(b.date)||parseInt(a.no)-parseInt(b.no));
+  const dd=x=>x?fmtD(x):'/';
+  const t1=grp(db.pf,(g,x)=>{g.n+=x.kg}),t2=grp(db.pm,(g,x)=>{g.fr+=x.fruit||0;Object.entries(x.fills).forEach(([z,n])=>g.z[z]=(g.z[z]||0)+n)});
+  return `<h1>Produktionslisten</h1><h2>Fleisch</h2>${dl('wl1',['Speck','Kaminwurz','Salami','Geräuchertes'],db.pf.map(x=>x.what))}<form onsubmit="return addPF(this)"><div class="row">${fl('Datum',`<input type="date" name="date" value="${today()}" required>`)}${fl('Was?',`<input name="what" list="wl1" size="14" required>`)}${fl('kg','<input name="kg" size="5" required>')}</div><div class="row">${fl('Rindfleisch',dI('rind'))}${fl('Wildfleisch',dI('wild'))}${fl('Magerfleisch',dI('mager'))}${fl('Wurstspeck',dI('speck'))}</div><div class="row"><button>Eintragen</button><small>Lotto-Nummer wird automatisch vergeben.</small></div></form>`+
+  (pf.length?`<div style="overflow-x:auto"><table><tr><th>Lotto</th><th>Datum</th><th>Was?</th><th class="n">kg</th><th>Rindfleisch</th><th>Wildfleisch</th><th>Magerfleisch</th><th>Wurstspeck</th><th></th></tr>${pf.map(x=>`<tr><td>${x.no}</td><td>${fmtD(x.date)}</td><td>${esc(x.what)}</td><td class="n">${nf(x.kg).replace(',00','')}</td><td>${dd(x.rind)}</td><td>${dd(x.wild)}</td><td>${dd(x.mager)}</td><td>${dd(x.speck)}</td><td><button class="x" onclick="delP('pf','${x.id}')" aria-label="löschen">×</button></td></tr>`).join('')}</table></div><h3>Übersicht Fleisch</h3><table>${t1.map(g=>`<tr><td>${esc(g.what)}</td><td class="n"><strong>${nf(g.n).replace(',00','')} kg</strong></td></tr>`).join('')}</table>`:'<p class="empty">Noch keine Einträge.</p>')+
+  `<h2>Marmeladen</h2>${dl('wl2',['Marmelade','Gelee','Sirup'],db.pm.map(x=>x.what))}<form onsubmit="return addPM(this)"><div class="row">${fl('Datum',`<input type="date" name="date" value="${today()}" required>`)}${fl('Was?',`<input name="what" list="wl2" size="14" required>`)}${fl('Menge Frucht (kg)','<input name="fruit" size="6">')}${fl('Rest vom Vorjahr','<input name="rest" size="10" placeholder="z. B. 247 St">')}</div><div class="row">${SZ.map((z,i)=>fl(z,`<input name="s${i}" size="4" inputmode="numeric" placeholder="Stück">`)).join('')}</div><div class="row"><button>Eintragen</button></div></form>`+
+  (pm.length?`<div style="overflow-x:auto"><table><tr><th>Lotto</th><th>Datum</th><th>Was?</th><th class="n">Frucht kg</th><th>Abgefüllt</th><th>Rest Vorjahr</th><th></th></tr>${pm.map(x=>`<tr><td>${x.no}</td><td>${fmtD(x.date)}</td><td>${esc(x.what)}</td><td class="n">${x.fruit==null?'/':nf(x.fruit).replace(',00','')}</td><td>${Object.entries(x.fills).map(([z,n])=>`${n} St. × ${z}`).join('<br>')}</td><td>${esc(x.rest)||'/'}</td><td><button class="x" onclick="delP('pm','${x.id}')" aria-label="löschen">×</button></td></tr>`).join('')}</table></div><h3>Übersicht Marmeladen und Sirup</h3><table>${t2.map(g=>`<tr><td>${esc(g.what)}</td><td class="n">${g.fr?nf(g.fr).replace(',00','')+' kg Frucht':''}</td><td>${Object.entries(g.z).map(([z,n])=>`<strong>${n}</strong> St. × ${z}`).join('<br>')}</td></tr>`).join('')}</table>`:'<p class="empty">Noch keine Einträge.</p>');
+ },
  customers(){
   return `<h1>Kunden</h1><form onsubmit="return addCust(this)"><div class="row"><input name="name" placeholder="Name" required><input name="email" placeholder="E-Mail"><input name="tel" placeholder="Telefon"><input name="adr" placeholder="Adresse"></div><div class="row"><input name="note" placeholder="Notiz" style="flex:1"><button>Kunde anlegen</button></div></form>`+
   (db.customers.length?db.customers.map(c=>`<div class="box"><div class="row"><input value="${esc(c.name)}" onchange="upC('${c.id}','name',this.value)" aria-label="Name"><input value="${esc(c.email)}" placeholder="E-Mail" onchange="upC('${c.id}','email',this.value)"><input value="${esc(c.tel)}" placeholder="Telefon" onchange="upC('${c.id}','tel',this.value)"><input value="${esc(c.adr)}" placeholder="Adresse" onchange="upC('${c.id}','adr',this.value)"><span style="flex:1"></span><button class="x" onclick="del('c','${c.id}')" aria-label="löschen">×</button></div><input value="${esc(c.note)}" placeholder="Notiz" style="width:100%" onchange="upC('${c.id}','note',this.value)"></div>`).join(''):'<p class="empty">Noch keine Kunden.</p>');
  }
 };
-const NAV=[['home','Start'],['tasks','Arbeiten'],['cal','Kalender'],['orders','Bestellungen'],['products','Produkte'],['ext','Für Dritte'],['customers','Kunden']];
+const NAV=[['home','Start'],['rec','Rezepte'],['mix','Mischpakete'],['cal','Kalender'],['tasks','Arbeiten'],['orders','Bestellungen'],['inv','Rechnungen'],['products','Produkte'],['ext','Für Dritte'],['customers','Kunden'],['prod','Produktionslisten']];
 function go(v){view=v;R();scrollTo(0,0)}
 function R(){
  $('#nav').innerHTML=`<div class="logo">Hofplaner</div>`+NAV.map(([k,l])=>`<button class="${k===view?'on':''}" onclick="go('${k}')">${l}</button>`).join('');
