@@ -1,7 +1,17 @@
 // Hofplaner: Anmeldung, Rollen und gemeinsame Daten (Cloudflare Worker + D1)
 const SECS = ['tasks','events','products','customers','orders','ext','kvs','prices','recipes','pf','pm','mix','meta'];
-const ADMIN_ONLY = ['kvs'];
-const ADMIN_WRITE = ['prices'];
+const PERMS = ['tasks','cal','orders','products','prices','customers','ext','recipes','mix','prod','inv'];
+const DEFAULT_PERMS = { tasks:1, cal:1, orders:1, products:1, prices:0, customers:1, ext:1, recipes:1, mix:1, prod:1, inv:0 };
+const READ = { tasks:['tasks'], events:['cal'], customers:['customers','orders','ext','inv'], orders:['orders','inv'], ext:['ext','inv'], prices:['ext','prices','inv'], kvs:['inv'], recipes:['recipes'], mix:['mix'], pf:['prod'], pm:['prod'] };
+const WRITE = { ...READ, products:['products'], prices:['prices'] };
+function getPerms(role, raw) {
+  const p = {};
+  let o = {};
+  try { o = raw ? JSON.parse(raw) : {}; } catch { o = {}; }
+  for (const k of PERMS) p[k] = role === 'admin' ? true : (k in o ? !!o[k] : !!DEFAULT_PERMS[k]);
+  return p;
+}
+const may = (perms, admin, list) => admin || !list || list.some(k => perms[k]);
 const MAX_DATA = 900000;
 const enc = new TextEncoder();
 
@@ -15,7 +25,7 @@ const SCHEMA = [
 ];
 let ready = null;
 function init(env) {
-  if (!ready) ready = env.DB.batch(SCHEMA.map(q => env.DB.prepare(q))).catch(e => { ready = null; throw e; });
+  if (!ready) ready = env.DB.batch(SCHEMA.map(q => env.DB.prepare(q))).then(() => env.DB.prepare('ALTER TABLE users ADD COLUMN perms TEXT').run().catch(() => {})).catch(e => { ready = null; throw e; });
   return ready;
 }
 
@@ -58,14 +68,15 @@ async function newSession(env, uid) {
 async function currentUser(req, env) {
   const t = cookie(req, 'hp_s');
   if (!t) return null;
-  return await env.DB.prepare('SELECT u.id,u.username,u.role FROM sessions s JOIN users u ON u.id=s.uid WHERE s.th=? AND s.exp>?').bind(await sha(t), Date.now()).first();
+  return await env.DB.prepare('SELECT u.id,u.username,u.role,u.perms FROM sessions s JOIN users u ON u.id=s.uid WHERE s.th=? AND s.exp>?').bind(await sha(t), Date.now()).first();
 }
 const validName = n => typeof n === 'string' && /^[A-Za-z0-9._-]{3,32}$/.test(n);
 const validPw = p => typeof p === 'string' && p.length >= 8 && p.length <= 200;
+const pub = u => ({ id: u.id, username: u.username, role: u.role, perms: getPerms(u.role, u.perms) });
 async function createUser(env, username, password, role) {
   const salt = crypto.getRandomValues(new Uint8Array(16));
   await env.DB.prepare('INSERT INTO users(username,pw,salt,role,created) VALUES(?,?,?,?,?)').bind(username, await hashPw(password, salt), b64(salt), role, Date.now()).run();
-  return await env.DB.prepare('SELECT id,username,role FROM users WHERE username=?').bind(username).first();
+  return await env.DB.prepare('SELECT id,username,role,perms FROM users WHERE username=?').bind(username).first();
 }
 
 async function handle(req, env, url) {
@@ -93,7 +104,7 @@ async function handle(req, env, url) {
     if (!validName(body.username)) return err('Benutzername: 3 bis 32 Zeichen (Buchstaben, Zahlen, . _ -).');
     if (!validPw(body.password)) return err('Passwort: mindestens 8 Zeichen.');
     const u = await createUser(env, body.username, body.password, 'admin');
-    return json({ user: u }, 200, { 'set-cookie': sessionCookie(await newSession(env, u.id), 30 * 86400) });
+    return json({ user: pub(u) }, 200, { 'set-cookie': sessionCookie(await newSession(env, u.id), 30 * 86400) });
   }
   if (path === '/api/login' && method === 'POST') {
     const name = String(body.username || '').trim().toLowerCase().slice(0, 40);
@@ -101,7 +112,7 @@ async function handle(req, env, url) {
     const since = Date.now() - 15 * 60e3;
     const f = await env.DB.prepare('SELECT COUNT(*) AS n FROM fails WHERE k=? AND ts>?').bind(key, since).first();
     if (f.n >= 8) return err('Zu viele Versuche. Bitte in 15 Minuten noch einmal probieren.', 429);
-    const u = await env.DB.prepare('SELECT id,username,role,pw,salt FROM users WHERE username=?').bind(name).first();
+    const u = await env.DB.prepare('SELECT id,username,role,perms,pw,salt FROM users WHERE username=?').bind(name).first();
     const salt = u ? unb64(u.salt) : new Uint8Array(16);
     const h = await hashPw(String(body.password || ''), salt);
     if (!u || !same(h, u.pw)) {
@@ -109,24 +120,25 @@ async function handle(req, env, url) {
       return err('Benutzername oder Passwort stimmt nicht.', 401);
     }
     await env.DB.prepare('DELETE FROM fails WHERE k=?').bind(key).run();
-    return json({ user: { id: u.id, username: u.username, role: u.role } }, 200, { 'set-cookie': sessionCookie(await newSession(env, u.id), 30 * 86400) });
+    return json({ user: pub(u) }, 200, { 'set-cookie': sessionCookie(await newSession(env, u.id), 30 * 86400) });
   }
 
   const me = await currentUser(req, env);
   if (!me) return err('Nicht angemeldet.', 401);
   const admin = me.role === 'admin';
+  const perms = getPerms(me.role, me.perms);
 
   if (path === '/api/logout' && method === 'POST') {
     await env.DB.prepare('DELETE FROM sessions WHERE th=?').bind(await sha(cookie(req, 'hp_s'))).run();
     return json({ ok: true }, 200, { 'set-cookie': sessionCookie('', 0) });
   }
-  if (path === '/api/me' && method === 'GET') return json({ user: me });
+  if (path === '/api/me' && method === 'GET') return json({ user: pub(me) });
 
   if (path === '/api/data' && method === 'GET') {
     const since = Math.max(0, parseInt(url.searchParams.get('since')) || 0);
-    const allowed = SECS.filter(s => admin || !ADMIN_ONLY.includes(s));
+    const allowed = SECS.filter(s => may(perms, admin, READ[s]));
     const rows = (await env.DB.prepare(`SELECT sec,id,data,upd,del FROM items WHERE upd>? AND sec IN (${allowed.map(() => '?').join(',')})`).bind(since, ...allowed).all()).results;
-    return json({ now: Date.now(), items: rows.filter(r => since > 0 || !r.del) });
+    return json({ now: Date.now(), role: me.role, perms, items: rows.filter(r => since > 0 || !r.del) });
   }
 
   if (path === '/api/sync' && method === 'POST') {
@@ -135,17 +147,17 @@ async function handle(req, env, url) {
     const now = Date.now(), st = [];
     for (const o of ops) {
       if (!o || !SECS.includes(o.sec) || typeof o.id !== 'string' || !o.id || o.id.length > 80) return err('Ungültige Änderung.');
-      if ((ADMIN_ONLY.includes(o.sec) || ADMIN_WRITE.includes(o.sec)) && !admin) return err('Dafür fehlt die Berechtigung.', 403);
+      if (!may(perms, admin, WRITE[o.sec])) return err('Dafür fehlt die Berechtigung.', 403);
       if (o.op === 'del') {
         if ((o.sec === 'products' || o.sec === 'ext') && !admin) return err('Dafür fehlt die Berechtigung.', 403);
         st.push(env.DB.prepare('INSERT INTO items(sec,id,data,upd,del) VALUES(?,?,NULL,?,1) ON CONFLICT(sec,id) DO UPDATE SET data=NULL,upd=excluded.upd,del=1').bind(o.sec, o.id, now));
       } else if (o.op === 'put' && o.data && typeof o.data === 'object') {
         const d = { ...o.data };
-        if (o.sec === 'products' && !admin) {
+        if (o.sec === 'products' && !perms.prices && !admin) {
           const old = await env.DB.prepare('SELECT data FROM items WHERE sec=? AND id=? AND del=0').bind('products', o.id).first();
           if (old && old.data) { const p = JSON.parse(old.data); d.price = p.price; d.changed = p.changed; d.unit = p.unit; }
         }
-        if (o.sec === 'ext' && !admin) {
+        if (o.sec === 'ext' && !admin && !perms.inv) {
           const old = await env.DB.prepare('SELECT data FROM items WHERE sec=? AND id=? AND del=0').bind('ext', o.id).first();
           const od = old && old.data ? JSON.parse(old.data) : null;
           d.prices = od ? (od.prices || {}) : {};
@@ -173,7 +185,8 @@ async function handle(req, env, url) {
   if (path === '/api/next' && method === 'POST') {
     const k = body.k;
     if (k !== 'rn' && k !== 'qn') return err('Ungültig.');
-    if (k === 'qn' && !admin) return err('Dafür fehlt die Berechtigung.', 403);
+    if (k === 'qn' && !perms.inv) return err('Dafür fehlt die Berechtigung.', 403);
+    if (k === 'rn' && !perms.orders && !perms.inv) return err('Dafür fehlt die Berechtigung.', 403);
     const r = await env.DB.prepare('INSERT INTO counters(k,v) VALUES(?,1) ON CONFLICT(k) DO UPDATE SET v=v+1 RETURNING v').bind(k).first();
     return json({ n: r.v });
   }
@@ -195,7 +208,7 @@ async function handle(req, env, url) {
     const m = path.match(/^\/api\/users(?:\/(\d+))?$/);
     if (!m) return err('Nicht gefunden.', 404);
     const id = m[1] ? parseInt(m[1]) : null;
-    if (!id && method === 'GET') return json({ users: (await env.DB.prepare('SELECT id,username,role,created FROM users ORDER BY username').all()).results });
+    if (!id && method === 'GET') return json({ users: (await env.DB.prepare('SELECT id,username,role,perms,created FROM users ORDER BY username').all()).results.map(u => ({ id: u.id, username: u.username, role: u.role, created: u.created, perms: getPerms(u.role, u.perms) })) });
     if (!id && method === 'POST') {
       if (!validName(body.username)) return err('Benutzername: 3 bis 32 Zeichen (Buchstaben, Zahlen, . _ -).');
       if (!validPw(body.password)) return err('Passwort: mindestens 8 Zeichen.');
@@ -214,6 +227,12 @@ async function handle(req, env, url) {
           if (n <= 1) return err('Es muss mindestens einen Admin geben.', 409);
         }
         st.push(env.DB.prepare('UPDATE users SET role=? WHERE id=?').bind(body.role, id));
+      }
+      if (body.perms !== undefined) {
+        if (!body.perms || typeof body.perms !== 'object') return err('Ungültige Rechte.');
+        const o = {};
+        for (const k of PERMS) o[k] = !!body.perms[k];
+        st.push(env.DB.prepare('UPDATE users SET perms=? WHERE id=?').bind(JSON.stringify(o), id));
       }
       if (body.password !== undefined) {
         if (!validPw(body.password)) return err('Passwort: mindestens 8 Zeichen.');

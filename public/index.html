@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <title>Hofplaner</title>
+<link rel="icon" type="image/png" href="/logo.png">
+<link rel="apple-touch-icon" href="/logo.png">
 <style>
 :root{--ink:#1f2a24;--bg:#f4f5ef;--card:#fff;--line:#d8dccf;--green:#2d5a3d;--red:#b3261e;--muted:#667068;box-sizing:border-box}
 *{box-sizing:inherit}
@@ -14,7 +16,7 @@ h1,h2,.logo{font-family:"Iowan Old Style","Palatino Linotype",Georgia,serif;font
 h1{font-size:2rem;margin:.2em 0 .6em}h2{font-size:1.25rem;margin:1.4em 0 .5em}
 nav{background:var(--green);color:#fff;padding:1.2rem .8rem;position:sticky;top:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column}
 #bar{display:none}
-.logo{font-size:1.5rem;padding:0 .6rem 1rem}
+.logo{font-size:1.5rem;padding:0 .6rem 1rem;display:flex;align-items:center;gap:.7rem}.logo img{width:52px;height:auto;flex:none}.lg h1{text-align:center}.lgi{display:block;width:110px;height:auto;margin:0 auto 1rem}.pg{display:grid;grid-template-columns:repeat(auto-fill,minmax(15rem,1fr));gap:.5rem 1rem;margin:.3rem 0 .6rem}.pk{display:flex;gap:.4rem;align-items:flex-start;flex-wrap:wrap}.pk small{display:block;width:100%;margin-left:1.7rem;color:var(--muted)}#pr table.ex{font-size:.7rem;width:100%;border-collapse:collapse}#pr table.ex th,#pr table.ex td{border:1px solid #999;padding:.15rem .3rem;text-align:left}
 nav button{display:block;width:100%;text-align:left;background:none;border:0;color:#dfe9e1;font:inherit;padding:.6rem .7rem;border-radius:6px;cursor:pointer}
 nav button.on{background:#fff;color:var(--green);font-weight:600}
 nav button:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #e0a800;outline-offset:1px}
@@ -122,7 +124,11 @@ function seed(){
 function emptyDb(){return{tasks:[],events:[],products:[],customers:[],orders:[],ocats:['Frischfleisch','Pakete','Hofladen (Abholung)'],prices:[],ext:[],kvs:[],recipes:[],mix:[],pf:[],pm:[]}}
 let db=emptyDb(),view='home',ui={d:newDraft(),f:{},of:'open'},me=null;
 const isAdmin=()=>!!me&&me.role==='admin';
-const ADMV=['inv','users'];
+const can=k=>isAdmin()||!!(me&&me.perms&&me.perms[k]);
+const VP={tasks:['tasks','ext'],cal:['cal'],orders:['orders'],products:['products'],customers:['customers'],inv:['inv'],ext:['ext'],rec:['recipes'],mix:['mix'],prod:['prod'],settings:'admin',users:'admin'};
+function okView(v){const p=VP[v];if(p==='admin')return isAdmin();return !p||p.some(k=>can(k))}
+const DEFP={tasks:1,cal:1,orders:1,products:1,prices:0,customers:1,ext:1,recipes:1,mix:1,prod:1,inv:0};
+const PERM_L=[['tasks','Arbeiten (Hof und Betrieb)',''],['cal','Kalender',''],['orders','Bestellungen',''],['products','Produkte','Verfügbarkeit ändern, Produkte anlegen'],['prices','Preise ändern','Produktpreise und Preisliste für Dritte'],['customers','Kunden',''],['ext','Arbeiten für Dritte','eintragen, Preise nur ansehen'],['recipes','Rezepte',''],['mix','Mischpakete',''],['prod','Produktionslisten',''],['inv','Rechnungen','mit Kostenvoranschlägen und Kundenpreisen']];
 const ASECS=['tasks','events','products','customers','orders','ext','kvs','prices','recipes','pf','pm'];
 const MIXORD=['Rind','Hirsch','Reh','Truthahn','Schwein'];
 let synced=new Map(),seq=0,dirty=false,syncing=false,again=false,syncT=null,pendingR=false,stat='ok';
@@ -178,7 +184,7 @@ async function loadAll(){
  const r=await api('/api/data?since=0');
  db=emptyDb();synced=new Map();applyItems(r.items);seq=r.now;
  if(!r.items.length&&isAdmin())db=Object.assign(emptyDb(),seed());
- else if(!db.mix.length)db.mix=mixData();
+ else if(!db.mix.length&&can('mix'))db.mix=mixData();
  sortAll();
  if(snap().size!==synced.size)save();
 }
@@ -193,6 +199,7 @@ async function poll(){
  try{
   const r=await api('/api/data?since='+Math.max(0,seq-5000));
   if(syncing||dirty)return;
+  if(r.perms&&(r.role!==me.role||JSON.stringify(r.perms)!==JSON.stringify(me.perms))){location.reload();return}
   const n=applyItems(r.items);seq=r.now;
   if(n){sortAll();if(busy())pendingR=true;else R()}
   if(stat!=='ok')setStat('ok');
@@ -206,8 +213,8 @@ async function startApp(){
  window.onbeforeunload=e=>{if(dirty||syncing){e.preventDefault();e.returnValue=''}};
  R();
 }
-function loginHtml(msg){return `<div class="lg"><h1>Hofplaner</h1><form onsubmit="return doLogin(this)" class="box"><label class="fl">Benutzername<input name="u" autocomplete="username" autocapitalize="none" autocorrect="off" required></label><label class="fl" style="margin-top:.7rem">Passwort<input type="password" name="p" autocomplete="current-password" required></label>${msg?`<p class="err" role="alert">${esc(msg)}</p>`:''}<div class="row"><button>Anmelden</button></div></form></div>`}
-function setupHtml(st,msg){return `<div class="lg"><h1>Hofplaner einrichten</h1>${st.setupConfigured?'':'<div class="box"><p class="err">Es fehlt noch ein Einrichtungscode.</p><p>In Cloudflare beim Projekt unter <strong>Einstellungen</strong>, <strong>Variablen und Geheimnisse</strong> ein Geheimnis (Secret) mit dem Namen <strong>SETUP_CODE</strong> anlegen und einen beliebigen Code als Wert eintragen. Danach diese Seite neu laden.</p></div>'}<form onsubmit="return doSetup(this)" class="box"><p>Lege den ersten Admin an.</p><label class="fl">Einrichtungscode<input name="c" autocomplete="off" required></label><label class="fl" style="margin-top:.7rem">Benutzername<input name="u" autocomplete="username" autocapitalize="none" required></label><label class="fl" style="margin-top:.7rem">Passwort (mindestens 8 Zeichen)<input type="password" name="p" autocomplete="new-password" required></label><label class="fl" style="margin-top:.7rem">Passwort wiederholen<input type="password" name="p2" autocomplete="new-password" required></label>${msg?`<p class="err" role="alert">${esc(msg)}</p>`:''}<div class="row"><button>Admin anlegen</button></div></form></div>`}
+function loginHtml(msg){return `<div class="lg"><img class="lgi" src="/logo.png" alt="Hof am Schloss"><h1>Hofplaner</h1><form onsubmit="return doLogin(this)" class="box"><label class="fl">Benutzername<input name="u" autocomplete="username" autocapitalize="none" autocorrect="off" required></label><label class="fl" style="margin-top:.7rem">Passwort<input type="password" name="p" autocomplete="current-password" required></label>${msg?`<p class="err" role="alert">${esc(msg)}</p>`:''}<div class="row"><button>Anmelden</button></div></form></div>`}
+function setupHtml(st,msg){return `<div class="lg"><img class="lgi" src="/logo.png" alt="Hof am Schloss"><h1>Hofplaner einrichten</h1>${st.setupConfigured?'':'<div class="box"><p class="err">Es fehlt noch ein Einrichtungscode.</p><p>In Cloudflare beim Projekt unter <strong>Einstellungen</strong>, <strong>Variablen und Geheimnisse</strong> ein Geheimnis (Secret) mit dem Namen <strong>SETUP_CODE</strong> anlegen und einen beliebigen Code als Wert eintragen. Danach diese Seite neu laden.</p></div>'}<form onsubmit="return doSetup(this)" class="box"><p>Lege den ersten Admin an.</p><label class="fl">Einrichtungscode<input name="c" autocomplete="off" required></label><label class="fl" style="margin-top:.7rem">Benutzername<input name="u" autocomplete="username" autocapitalize="none" required></label><label class="fl" style="margin-top:.7rem">Passwort (mindestens 8 Zeichen)<input type="password" name="p" autocomplete="new-password" required></label><label class="fl" style="margin-top:.7rem">Passwort wiederholen<input type="password" name="p2" autocomplete="new-password" required></label>${msg?`<p class="err" role="alert">${esc(msg)}</p>`:''}<div class="row"><button>Admin anlegen</button></div></form></div>`}
 async function showLogin(msg){
  document.body.classList.add('login');
  let st={needsSetup:false,setupConfigured:true};try{st=await api('/api/status')}catch(e){}
@@ -224,6 +231,66 @@ const tb=(k,l)=>`<div class="row"><button class="${ui.f[k]?'ghost':''}" onclick=
 async function loadUsers(){try{ui.users=(await api('/api/users')).users}catch(e){alert(e.message);ui.users=[]}R()}
 async function addUser(f){try{await api('/api/users',{username:f.n.value.trim(),password:f.p.value,role:f.r.value});ui.f.u=false;await loadUsers()}catch(e){alert(e.message)}return false}
 async function setRole(id,r){try{await api('/api/users/'+id,{role:r},'PATCH')}catch(e){alert(e.message)}loadUsers()}
+async function setPerm(id,k,v){const u=ui.users.find(x=>x.id===id);u.perms[k]=v;try{await api('/api/users/'+id,{perms:u.perms},'PATCH')}catch(e){alert(e.message);loadUsers()}}
+async function permReset(id){if(!confirm('Rechte auf den Standard zurücksetzen?'))return;try{await api('/api/users/'+id,{perms:Object.fromEntries(Object.entries(DEFP).map(([k,v])=>[k,!!v]))},'PATCH')}catch(e){alert(e.message)}loadUsers()}
+/* ---------- Export (Excel und PDF) ---------- */
+function expSets(){
+ const yn=b=>b?'ja':'nein',IS={schreiben:'Noch zu schreiben',kassieren:'Noch zu kassieren',bezahlt:'Bezahlt'},AV={ja:'Verfügbar',nein:'Nicht verfügbar',aus:'Ausgeblendet'},D=d=>d?fmtD(d):'',X=extInv();
+ const E=[];
+ E.push({id:'tasks',name:'Arbeiten',head:['Arbeit','Datum','Wiederholung','Priorität','Zuständig','Erledigt'],rows:db.tasks.map(t=>[t.text,D(t.date),RL[t.rep]||'',PL[t.p]||'',t.who||'',yn(t.done)])});
+ E.push({id:'events',name:'Termine',head:['Datum','Uhrzeit','Termin','Erledigt'],rows:[...db.events].sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time)).map(e=>[D(e.date),e.time||'',e.title,yn(e.done)])});
+ E.push({id:'orders',name:'Bestellungen',head:['Datum','Abholung/Lieferung','Kunde','Kategorie','E-Mail','Telefon','Adresse','Positionen','Summe €','Erledigt','Rechnungsnr.','Rechnungsstatus'],rows:db.orders.map(o=>[D(o.date),D(o.due),o.name,o.cat,o.email||'',o.tel||'',o.adr||'',o.items.map(i=>i.name+' '+nf(i.qty).replace(',00','')+' '+i.unit).join('; '),sum(o.items),yn(o.done),o.rno||'',o.done?IS[o.inv||'schreiben']:''])});
+ E.push({id:'inv',name:'Rechnungen',head:['Nr.','Datum','Kunde','Art','Betrag €','Status'],rows:[...db.orders.filter(o=>o.done).map(o=>[o.rno||'',D(o.date),o.name,'Bestellung',sum(o.items),IS[o.inv||'schreiben']]),...X.map(x=>[x.no,D(x.date),cn(x.e),'Arbeiten für Dritte',x.tot,IS[x.st]])]});
+ const jr=[];db.ext.forEach(e=>e.jobs.forEach(j=>{const k=db.kvs.find(x=>x.id===j.qid);jr.push([cn(e),D(j.date),j.what,j.lines.map(l=>l.name+': '+nf(l.h)+' '+l.unit+' × '+nf(l.pr)+' €').join('; '),jt(j),k?(k.confirmed?(k.paid?'Bezahlt':IS[k.inv||'schreiben']):'Entwurf'):IS[jst(j)],k?k.no:''])}));
+ E.push({id:'ext',name:'Arbeiten für Dritte',head:['Kunde','Datum','Arbeit','Leistungen','Betrag €','Rechnungsstatus','Kostenvoranschlag'],rows:jr});
+ E.push({id:'prices',name:'Preisliste Dritte',head:['Kategorie','Leistung','Einheit','Preis €','Preis geändert'],rows:db.prices.map(p=>[p.cat,p.name,p.unit,p.price==null?'':p.price,D(p.changed)])});
+ E.push({id:'products',name:'Produkte',head:['Kategorie','Produkt','Preis €','Einheit','Verfügbarkeit','Preis geändert'],rows:db.products.map(p=>[p.cat,p.name,p.price==null?'':p.price,p.unit,AV[p.avail]||'',D(p.changed)])});
+ E.push({id:'customers',name:'Kunden',head:['Name','E-Mail','Telefon','Adresse','Notiz'],rows:db.customers.map(c=>[c.name,c.email||'',c.tel||'',c.adr||'',c.note||''])});
+ E.push({id:'pf',name:'Produktion Fleisch',head:['Lotto','Datum','Was','kg','Rindfleisch','Wildfleisch','Magerfleisch','Wurstspeck'],rows:[...db.pf].sort((a,b)=>a.date.localeCompare(b.date)).map(x=>[x.no,D(x.date),x.what,x.kg,D(x.rind),D(x.wild),D(x.mager),D(x.speck)])});
+ E.push({id:'pm',name:'Produktion Marmeladen',head:['Lotto','Datum','Was','Frucht kg','Abgefüllt','Rest Vorjahr'],rows:[...db.pm].sort((a,b)=>a.date.localeCompare(b.date)).map(x=>[x.no,D(x.date),x.what,x.fruit==null?'':x.fruit,Object.entries(x.fills).map(([z,n])=>n+' St. × '+z).join('; '),x.rest||''])});
+ const mr=[];db.mix.forEach(t=>t.rows.forEach(r=>t.cols.forEach((c,i)=>{if(r.v[i]!=null)mr.push([t.name,r.l,c,r.v[i]])})));
+ E.push({id:'mix',name:'Mischpakete',head:['Mischpaket','Paketgröße','Fleischteil','kg'],rows:mr});
+ return E;
+}
+function expAll(v){const E=expSets();ui.ex=Object.fromEntries(E.map(e=>[e.id,v]));R()}
+function expPick(){const sel=ui.ex||{},l=expSets().filter(e=>sel[e.id]);if(!l.length){alert('Bitte mindestens eine Auswahl anhaken.');return null}return l}
+const CRC=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}return t})();
+const crc32=u=>{let c=0xFFFFFFFF;for(let i=0;i<u.length;i++)c=CRC[(c^u[i])&255]^(c>>>8);return(c^0xFFFFFFFF)>>>0};
+function zipBlob(files){
+ const te=new TextEncoder(),parts=[],cd=[];let off=0;
+ files.forEach(f=>{const nm=te.encode(f.name),d=te.encode(f.text),crc=crc32(d),sz=d.length;
+  const h=new DataView(new ArrayBuffer(30));h.setUint32(0,0x04034b50,true);h.setUint16(4,20,true);h.setUint16(6,0x0800,true);h.setUint16(12,0x21,true);h.setUint32(14,crc,true);h.setUint32(18,sz,true);h.setUint32(22,sz,true);h.setUint16(26,nm.length,true);
+  parts.push(new Uint8Array(h.buffer),nm,d);
+  const c=new DataView(new ArrayBuffer(46));c.setUint32(0,0x02014b50,true);c.setUint16(4,20,true);c.setUint16(6,20,true);c.setUint16(8,0x0800,true);c.setUint16(14,0x21,true);c.setUint32(16,crc,true);c.setUint32(20,sz,true);c.setUint32(24,sz,true);c.setUint16(28,nm.length,true);c.setUint32(42,off,true);
+  cd.push(new Uint8Array(c.buffer),nm);off+=30+nm.length+sz});
+ const cs=cd.reduce((a,x)=>a+x.length,0),e=new DataView(new ArrayBuffer(22));e.setUint32(0,0x06054b50,true);e.setUint16(8,files.length,true);e.setUint16(10,files.length,true);e.setUint32(12,cs,true);e.setUint32(16,off,true);
+ return new Blob([...parts,...cd,new Uint8Array(e.buffer)],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+}
+const colL=i=>{let r='';i++;while(i>0){const m=(i-1)%26;r=String.fromCharCode(65+m)+r;i=Math.floor((i-1)/26)}return r};
+const xe=v=>String(v==null?'':v).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g,'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function sheetXml(head,rows){
+ const all=[head,...rows],cell=(v,r,c)=>{const ref=colL(c)+r;if(typeof v==='number'&&isFinite(v))return `<c r="${ref}"><v>${v}</v></c>`;return `<c r="${ref}" t="inlineStr"${r===1?' s="1"':''}><is><t xml:space="preserve">${xe(v)}</t></is></c>`};
+ const w=head.map((h,i)=>{let m=0;all.forEach(r=>{m=Math.max(m,String(r[i]==null?'':r[i]).length)});return Math.min(60,Math.max(10,m+2))});
+ return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>${w.map((x,i)=>`<col min="${i+1}" max="${i+1}" width="${x}" customWidth="1"/>`).join('')}</cols><sheetData>${all.map((r,ri)=>`<row r="${ri+1}">${r.map((v,ci)=>cell(v,ri+1,ci)).join('')}</row>`).join('')}</sheetData></worksheet>`;
+}
+function expXlsx(){
+ const l=expPick();if(!l)return;
+ const NS='xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"',H='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',used=new Set(),names=l.map(e=>{let n=e.name.replace(/[\[\]:*?\/\\]/g,' ').slice(0,31),k=2;while(used.has(n.toLowerCase()))n=n.slice(0,28)+' '+k++;used.add(n.toLowerCase());return n});
+ const files=[
+  {name:'[Content_Types].xml',text:H+'<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'+l.map((e,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')+'</Types>'},
+  {name:'_rels/.rels',text:H+'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>'},
+  {name:'xl/workbook.xml',text:H+`<workbook ${NS} xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${l.map((e,i)=>`<sheet name="${xe(names[i])}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join('')}</sheets></workbook>`},
+  {name:'xl/_rels/workbook.xml.rels',text:H+'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+l.map((e,i)=>`<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join('')+`<Relationship Id="rId${l.length+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`},
+  {name:'xl/styles.xml',text:H+`<styleSheet ${NS}><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`},
+  ...l.map((e,i)=>({name:`xl/worksheets/sheet${i+1}.xml`,text:sheetXml(e.head,e.rows)}))
+ ];
+ const a=document.createElement('a');a.href=URL.createObjectURL(zipBlob(files));a.download='Hofplaner-Export-'+today()+'.xlsx';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},3000);
+}
+function expPdf(){
+ const l=expPick();if(!l)return;
+ $('#pr').innerHTML=`<h1>Hofplaner Export</h1><p>Stand ${fmtD(today())}</p>`+l.map(e=>`<h2>${esc(e.name)}</h2>`+(e.rows.length?`<table class="ex"><tr>${e.head.map(h=>`<th>${esc(h)}</th>`).join('')}</tr>${e.rows.map(r=>`<tr>${r.map(v=>`<td>${typeof v==='number'?nf(v).replace(',00',''):esc(v)}</td>`).join('')}</tr>`).join('')}</table>`:'<p>Keine Einträge.</p>')).join('');
+ document.title='Hofplaner-Export '+today();window.print();
+}
 async function setUPw(id){const i=$('#up_'+id);if(!i||!i.value)return alert('Bitte ein neues Passwort eingeben.');try{await api('/api/users/'+id,{password:i.value},'PATCH');alert('Passwort geändert. Der Benutzer muss sich neu anmelden.');loadUsers()}catch(e){alert(e.message)}}
 async function delUser(id){const u=ui.users.find(x=>x.id===id);if(!confirm('Benutzer „'+u.username+'“ löschen?'))return;try{await api('/api/users/'+id,undefined,'DELETE')}catch(e){alert(e.message)}loadUsers()}
 async function changePw(f){if(f.n.value!==f.n2.value){alert('Die neuen Passwörter stimmen nicht überein.');return false}try{await api('/api/password',{old:f.o.value,password:f.n.value});alert('Passwort geändert.');f.reset()}catch(e){alert(e.message)}return false}
@@ -433,7 +500,7 @@ function pdfKV(id){
  document.title=k.no.replace('/','-')+' '+(c.name||'');window.print();
 }
 function extBox(e){
- const adm=isAdmin(),KS=db.kvs.filter(k=>k.eid===e.id),vis=e.jobs.filter(j=>{if(!adm)return !j.qid&&jst(j)==='schreiben';const k=KS.find(k=>k.id===j.qid);return !(k&&k.confirmed)&&!(!j.qid&&jst(j)==='bezahlt')}),tot=vis.reduce((s,j)=>s+jt(j),0),cats=[...new Set(db.prices.map(p=>p.cat))];
+ const adm=can('inv'),KS=db.kvs.filter(k=>k.eid===e.id),vis=e.jobs.filter(j=>{if(!adm)return !j.qid&&jst(j)==='schreiben';const k=KS.find(k=>k.id===j.qid);return !(k&&k.confirmed)&&!(!j.qid&&jst(j)==='bezahlt')}),tot=vis.reduce((s,j)=>s+jt(j),0),cats=[...new Set(db.prices.map(p=>p.cat))];
  const form=det('n'+e.id,'Neue Arbeit eintragen',`<div class="row"><input id="w_${e.id}" placeholder="Was wurde getan?" style="flex:1;min-width:12rem"><input type="date" id="d_${e.id}" value="${today()}"></div>`+cats.map((c,ci)=>det('f'+e.id+ci,esc(c),`<table>${db.prices.filter(p=>p.cat===c).map(p=>{const pr=kn(e,p);return `<tr><td>${esc(p.name)}</td><td class="n">${pr==null?'<small>Preis fehlt (in der Preisliste eintragen)</small>':`<input id="h_${e.id}_${p.id}" size="4" placeholder="${p.unit}"> ${nf(pr)} €/${p.unit}`}</td></tr>`}).join('')}</table>`,'sub')).join('')+`<p><button onclick="addJob('${e.id}')">Arbeit speichern</button></p>`);
  const cp=!adm?'':det('p'+e.id,'Preise dieses Kunden',`<table>${db.prices.map(p=>{const v=kn(e,p),ind=e.prices[p.id]!=null&&e.prices[p.id]!==p.price;return `<tr><td>${esc(p.name)}</td><td class="n"><input class="pr ${ind?'ind':''}" value="${v==null?'':nf(v)}" placeholder="Preis" onchange="setCP('${e.id}','${p.id}',this.value)" aria-label="Preis ${esc(p.name)}"> €/${p.unit}</td></tr>`}).join('')}</table>`);
  const jl=vis.map(j=>{const k=KS.find(k=>k.id===j.qid);return `<div class="job ${k?'inkv':''}"><div class="row">${!adm||k||jst(j)!=='schreiben'?'':`<input type="checkbox" class="jsel_${e.id}" value="${j.id}" aria-label="auswählen">`}<strong>${esc(j.what)}</strong><small>${fmtD(j.date)}</small>${!adm?'':k?`<span class="tag">in ${esc(k.no)}</span>`:`<span class="tag">Rechnung: ${jst(j)==='schreiben'?'noch zu schreiben':'noch zu kassieren'}</span>`}<span style="flex:1"></span><strong>${nf(jt(j))} €</strong><button class="x" onclick="delJob('${e.id}','${j.id}')" aria-label="löschen">×</button></div><small>${j.lines.map(l=>`${esc(l.name)}: ${nf(l.h)} ${l.unit} × ${nf(l.pr)} €`).join('; ')}</small>${k?'':`<div class="row"><select id="mv_${j.id}"><option value="">Verschieben nach …</option>${db.ext.filter(x=>x.id!==e.id).map(x=>`<option value="${x.id}">${esc(cn(x))}</option>`).join('')}</select><button class="ghost" onclick="moveJob('${e.id}','${j.id}')">Verschieben</button></div>`}</div>`}).join('');
@@ -483,14 +550,14 @@ const V={
   const adm=isAdmin(),all=allTasks(),open=all.filter(t=>!t.done&&(adm||t.k!=='t'||!t.who||t.who===me.username)).sort((a,b)=>a.p-b.p),ev=all.filter(t=>t.k==='e'&&!t.done&&days(t.date)>=0&&days(t.date)<=7).sort((a,b)=>a.date.localeCompare(b.date)),ship=open.filter(t=>t.k==='s').length;
   const X=extInv(),i0=db.orders.filter(o=>o.done&&(o.inv||'schreiben')==='schreiben').length+X.filter(x=>x.st==='schreiben').length,i1=db.orders.filter(o=>o.done&&o.inv==='kassieren').length+X.filter(x=>x.st==='kassieren').length;
   const c=(n,l,v)=>`<button class="stc" onclick="go('${v}')"><b>${n}</b><span>${l}</span></button>`;
-  return `<h1>Guten Tag, ${esc(me.username)}</h1><div class="row"><button onclick="quick('tasks')">+ Neue Arbeit</button><button class="ghost" onclick="quick('orders')">+ Neue Bestellung</button><button class="ghost" onclick="quick('cal')">+ Neuer Termin</button></div><div class="stg">${c(open.length,'offene Arbeiten','tasks')}${c(ev.length,'Termine in 7 Tagen','cal')}${c(ship,'Pakete zu versenden','tasks')}${adm?c(i0,'Rechnungen zu schreiben','inv')+c(i1,'Rechnungen zu kassieren','inv'):''}</div>`+
+  return `<h1>Guten Tag, ${esc(me.username)}</h1><div class="row">${can('tasks')||can('ext')?`<button onclick="quick('tasks')">+ Neue Arbeit</button>`:''}${can('orders')?`<button class="ghost" onclick="quick('orders')">+ Neue Bestellung</button>`:''}${can('cal')?`<button class="ghost" onclick="quick('cal')">+ Neuer Termin</button>`:''}</div><div class="stg">${can('tasks')?c(open.length,'offene Arbeiten','tasks'):''}${can('cal')?c(ev.length,'Termine in 7 Tagen','cal'):''}${can('orders')&&can('tasks')?c(ship,'Pakete zu versenden','tasks'):''}${can('inv')?c(i0,'Rechnungen zu schreiben','inv')+c(i1,'Rechnungen zu kassieren','inv'):''}</div>`+
   (ev.length?`<h2>Nächste Termine</h2><ul class="tl">${ev.map(row).join('')}</ul>`:'')+
   `<h2>Offene Arbeiten</h2>`+(open.length?`<ul class="tl">${open.map(row).join('')}</ul>`:'<p class="empty">Nichts offen. Neue Arbeiten legst du unter „Arbeiten“ an.</p>');
  },
  tasks(){
   const adm=isAdmin();
   if(adm&&!ui.users&&!ui.ul){ui.ul=1;loadUsers()}
-  const tt=ui.tt||'hof',tabs=`<div class="row"><button class="${tt==='hof'?'':'ghost'}" onclick="ui.tt='hof';R()">Hof und Betrieb</button><button class="${tt==='ext'?'':'ghost'}" onclick="ui.tt='ext';R()">Für Dritte</button></div>`;
+  const tt=!can('tasks')?'ext':!can('ext')?'hof':(ui.tt||'hof'),tabs=!(can('tasks')&&can('ext'))?'':`<div class="row"><button class="${tt==='hof'?'':'ghost'}" onclick="ui.tt='hof';R()">Hof und Betrieb</button><button class="${tt==='ext'?'':'ghost'}" onclick="ui.tt='ext';R()">Für Dritte</button></div>`;
   if(tt==='ext')return `<h1>Arbeiten</h1>${tabs}${V.extBody()}`;
   let a=allTasks();if(ui.tm==='mine')a=a.filter(t=>t.k!=='t'||t.who===me.username);
   let h=`<h1>Arbeiten</h1>${tabs}<form onsubmit="return addTask(this)" class="row"><input name="text" placeholder="Neue Arbeit" required style="flex:1;min-width:12rem"><select name="p"><option value="1">Hohe Priorität</option><option value="2" selected>Mittlere Priorität</option><option value="3">Niedrige Priorität</option></select><input type="date" name="date" aria-label="Datum (optional)" title="Datum (optional)"><select name="rep" aria-label="Wiederholung"><option value="">Einmalig</option><option value="d">Täglich</option><option value="w">Wöchentlich</option><option value="m">Monatlich</option></select>${adm?`<select name="who" aria-label="Zuständig"><option value="">Zuständig: niemand</option>${(ui.users||[]).map(u=>`<option>${esc(u.username)}</option>`).join('')}</select>`:''}<button>Hinzufügen</button></form><div class="row"><select onchange="ui.tm=this.value;R()" aria-label="Filter"><option value="">Alle Arbeiten</option><option value="mine" ${ui.tm==='mine'?'selected':''}>Nur meine</option></select></div>`;
@@ -524,14 +591,14 @@ const V={
   return `<h1>Bestellungen</h1>${tb('o','+ Neue Bestellung')}${ui.f.o?`<h2>Neue Bestellung</h2>${form}`:''}<div class="row"><button class="${ui.of==='open'?'':'ghost'}" onclick="ui.of='open';R()">Offen (${n1})</button><button class="${ui.of==='done'?'':'ghost'}" onclick="ui.of='done';R()">Erledigt (${n2})</button></div>${list||'<p class="empty">Keine Bestellungen in dieser Liste.</p>'}`;
  },
  products(){
-  const cats=[...new Set(db.products.map(p=>p.cat))],adm=isAdmin(),q=(ui.pq||'').toLowerCase();
-  const row=p=>`<div class="prow ${p.avail!=='ja'?'dim':''}" data-n="${esc(p.name.toLowerCase())}"><label class="ph">${p.img?`<img src="${p.img}" alt="Foto ${esc(p.name)}">`:'<span>Foto</span>'}<input type="file" accept="image/*" onchange="setImg('${p.id}',this)" aria-label="Foto für ${esc(p.name)}"></label><div><div class="nm">${esc(p.name)}</div>${p.changed?`<small>Preis geändert ${fmtD(p.changed)}</small>`:''}</div><div class="n"><input class="pr" value="${p.price==null?'':nf(p.price)}" placeholder="Anfrage" onchange="setPrice('${p.id}',this.value)" aria-label="Preis ${esc(p.name)}" ${adm?'':'disabled'}> €/${p.unit}</div><select class="av2" onchange="setAv('${p.id}',this.value)" aria-label="Verfügbarkeit ${esc(p.name)}"><option value="ja" ${p.avail==='ja'?'selected':''}>Verfügbar</option><option value="nein" ${p.avail==='nein'?'selected':''}>Nicht verfügbar</option><option value="aus" ${p.avail==='aus'?'selected':''}>Ausgeblendet</option></select>${adm?`<button class="x" onclick="delProd('${p.id}')" aria-label="Produkt ${esc(p.name)} entfernen" title="Produkt entfernen">×</button>`:''}</div>`;
+  const cats=[...new Set(db.products.map(p=>p.cat))],adm=isAdmin(),pe=can('prices'),q=(ui.pq||'').toLowerCase();
+  const row=p=>`<div class="prow ${p.avail!=='ja'?'dim':''}" data-n="${esc(p.name.toLowerCase())}"><label class="ph">${p.img?`<img src="${p.img}" alt="Foto ${esc(p.name)}">`:'<span>Foto</span>'}<input type="file" accept="image/*" onchange="setImg('${p.id}',this)" aria-label="Foto für ${esc(p.name)}"></label><div><div class="nm">${esc(p.name)}</div>${p.changed?`<small>Preis geändert ${fmtD(p.changed)}</small>`:''}</div><div class="n"><input class="pr" value="${p.price==null?'':nf(p.price)}" placeholder="Anfrage" onchange="setPrice('${p.id}',this.value)" aria-label="Preis ${esc(p.name)}" ${pe?'':'disabled'}> €/${p.unit}</div><select class="av2" onchange="setAv('${p.id}',this.value)" aria-label="Verfügbarkeit ${esc(p.name)}"><option value="ja" ${p.avail==='ja'?'selected':''}>Verfügbar</option><option value="nein" ${p.avail==='nein'?'selected':''}>Nicht verfügbar</option><option value="aus" ${p.avail==='aus'?'selected':''}>Ausgeblendet</option></select>${adm?`<button class="x" onclick="delProd('${p.id}')" aria-label="Produkt ${esc(p.name)} entfernen" title="Produkt entfernen">×</button>`:''}</div>`;
   return `<h1>Produkte</h1><div class="row"><input type="search" id="pq" placeholder="Produkt suchen" value="${esc(ui.pq||'')}" oninput="filterP(this.value)" style="flex:1;min-width:12rem" aria-label="Produkt suchen"><button class="ghost" onclick="addCat()">+ Neue Kategorie</button></div>`+
    cats.map((c,i)=>{const l=db.products.filter(p=>p.cat===c),nn=l.filter(p=>p.avail!=='ja').length;return det('pc'+i,`${esc(c)} <small style="display:inline">(${l.length}${nn?', '+nn+' nicht verfügbar oder ausgeblendet':''})</small>`,l.map(row).join('')+`<p><button class="ghost" onclick="addProd(${i})">+ Produkt hinzufügen</button></p>`)}).join('');
  },
  extBody(){
   const cats=[...new Set(db.prices.map(p=>p.cat))];
-  const base=det('pl','Preisliste (Grundpreise)',cats.map((c,i)=>`<h3>${esc(c)}</h3><table>${db.prices.filter(p=>p.cat===c).map(p=>`<tr><td>${esc(p.name)}</td><td class="n"><input class="pr" value="${p.price==null?'':nf(p.price)}" placeholder="Preis" onchange="setBase('${p.id}',this.value)" aria-label="Preis ${esc(p.name)}" ${isAdmin()?'':'disabled'}> €/${p.unit}<small>${p.changed?'geändert '+fmtD(p.changed):'Preis fehlt'}</small></td></tr>`).join('')}</table>${isAdmin()?`<button class="ghost" onclick="addSvc(${i})">+ Leistung hinzufügen</button>`:''}`).join(''));
+  const base=det('pl','Preisliste (Grundpreise)',cats.map((c,i)=>`<h3>${esc(c)}</h3><table>${db.prices.filter(p=>p.cat===c).map(p=>`<tr><td>${esc(p.name)}</td><td class="n"><input class="pr" value="${p.price==null?'':nf(p.price)}" placeholder="Preis" onchange="setBase('${p.id}',this.value)" aria-label="Preis ${esc(p.name)}" ${can('prices')?'':'disabled'}> €/${p.unit}<small>${p.changed?'geändert '+fmtD(p.changed):'Preis fehlt'}</small></td></tr>`).join('')}</table>${can('prices')?`<button class="ghost" onclick="addSvc(${i})">+ Leistung hinzufügen</button>`:''}`).join(''));
   const fr=db.customers.filter(c=>!db.ext.some(e=>e.cid===c.id));
   const top=`<div class="row"><select id="x_new"><option value="">Kunde aus der Liste öffnen</option>${fr.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select><button onclick="openExt()">Öffnen</button><button class="ghost" onclick="newExt()">+ Neuer Kunde</button></div>`;
   return `${base}<h2>Kunden</h2>${top}`+(db.ext.length?db.ext.map(extBox).join(''):'<p class="empty">Noch kein Kunde geöffnet.</p>');
@@ -579,10 +646,24 @@ const V={
   `<h2>Marmeladen</h2>${tb('pm','+ Neuer Eintrag')}${ui.f.pm?`${dl('wl2',['Marmelade','Gelee','Sirup'],db.pm.map(x=>x.what))}<form onsubmit="return addPM(this)"><div class="row">${fl('Datum',`<input type="date" name="date" value="${today()}" required>`)}${fl('Was?',`<input name="what" list="wl2" size="14" required>`)}${fl('Menge Frucht (kg)','<input name="fruit" size="6">')}${fl('Rest vom Vorjahr','<input name="rest" size="10" placeholder="z. B. 247 St">')}</div><div class="row">${SZ.map((z,i)=>fl(z,`<input name="s${i}" size="4" inputmode="numeric" placeholder="Stück">`)).join('')}</div><div class="row"><button>Eintragen</button></div></form>`:''}`+
   (pm.length?`<div style="overflow-x:auto"><table><tr><th>Lotto</th><th>Datum</th><th>Was?</th><th class="n">Frucht kg</th><th>Abgefüllt</th><th>Rest Vorjahr</th><th></th></tr>${pm.map(x=>`<tr><td>${x.no}</td><td>${fmtD(x.date)}</td><td>${esc(x.what)}</td><td class="n">${x.fruit==null?'/':nf(x.fruit).replace(',00','')}</td><td>${Object.entries(x.fills).map(([z,n])=>`${n} St. × ${z}`).join('<br>')}</td><td>${esc(x.rest)||'/'}</td><td><button class="x" onclick="delP('pm','${x.id}')" aria-label="löschen">×</button></td></tr>`).join('')}</table></div><h3>Übersicht Marmeladen und Sirup</h3><table>${t2.map(g=>`<tr><td>${esc(g.what)}</td><td class="n">${g.fr?nf(g.fr).replace(',00','')+' kg Frucht':''}</td><td>${Object.entries(g.z).map(([z,n])=>`<strong>${n}</strong> St. × ${z}`).join('<br>')}</td></tr>`).join('')}</table>`:'<p class="empty">Noch keine Einträge.</p>');
  },
- users(){
-  if(!ui.users){loadUsers();return '<h1>Benutzer</h1><p class="empty">Lade …</p>'}
+ users(){ui.st='users';return V.settings()},
+ settings(){
+  const st=ui.st||'users',T=[['users','Benutzer'],['rights','Rechte'],['export','Export']];
+  return `<h1>Einstellungen</h1><div class="row">${T.map(([k,l])=>`<button class="${st===k?'':'ghost'}" onclick="ui.st='${k}';go('settings')">${l}</button>`).join('')}</div>`+(st==='rights'?V.rightsBody():st==='export'?V.exportBody():V.usersBody());
+ },
+ rightsBody(){
+  if(!ui.users){loadUsers();return '<p class="empty">Lade …</p>'}
+  const us=ui.users.filter(u=>u.role!=='admin');
+  return `<p><small>Admins dürfen immer alles. Hier legst du fest, was jeder Benutzer sehen und tun darf. Änderungen gelten sofort, die App des Benutzers lädt sich dabei von selbst neu.</small></p>`+(us.length?us.map(u=>`<div class="box"><div class="row"><strong>${esc(u.username)}</strong><span style="flex:1"></span><button class="ghost" onclick="permReset(${u.id})">Auf Standard setzen</button></div><div class="pg">${PERM_L.map(([k,l,h])=>`<label class="pk"><input type="checkbox" ${u.perms[k]?'checked':''} onchange="setPerm(${u.id},'${k}',this.checked)"> ${l}${h?`<small>${h}</small>`:''}</label>`).join('')}</div></div>`).join(''):'<p class="empty">Noch keine Benutzer. Lege sie unter „Benutzer“ an.</p>');
+ },
+ exportBody(){
+  const E=expSets(),sel=ui.ex||(ui.ex=Object.fromEntries(E.map(e=>[e.id,true])));
+  return `<p><small>Wähle aus, was exportiert werden soll. Excel erzeugt eine Datei mit einem Blatt pro Auswahl. Bei PDF öffnet sich der Druckdialog, dort „Als PDF speichern“ wählen.</small></p><div class="box"><div class="pg">${E.map(e=>`<label class="pk"><input type="checkbox" ${sel[e.id]?'checked':''} onchange="ui.ex['${e.id}']=this.checked"> ${esc(e.name)}<small>${e.rows.length} Zeilen</small></label>`).join('')}</div><div class="row"><button onclick="expXlsx()">Excel (.xlsx) herunterladen</button><button class="ghost" onclick="expPdf()">PDF erstellen</button><button class="ghost" onclick="expAll(true)">Alles auswählen</button><button class="ghost" onclick="expAll(false)">Nichts auswählen</button></div></div>`;
+ },
+ usersBody(){
+  if(!ui.users){loadUsers();return '<p class="empty">Lade …</p>'}
   const rows=ui.users.map(u=>`<div class="box"><div class="row"><strong>${esc(u.username)}</strong>${u.id===me.id?'<span class="tag">du</span>':''}<span style="flex:1"></span><select onchange="setRole(${u.id},this.value)" aria-label="Rolle von ${esc(u.username)}" ${u.id===me.id?'disabled':''}><option value="user" ${u.role==='user'?'selected':''}>Benutzer</option><option value="admin" ${u.role==='admin'?'selected':''}>Admin</option></select>${u.id===me.id?'':`<button class="x" onclick="delUser(${u.id})" aria-label="${esc(u.username)} löschen">×</button>`}</div><div class="row"><input type="password" id="up_${u.id}" placeholder="Neues Passwort" autocomplete="new-password" aria-label="Neues Passwort für ${esc(u.username)}"><button class="ghost" onclick="setUPw(${u.id})">Passwort setzen</button></div></div>`).join('');
-  return `<h1>Benutzer</h1><p><small>Admins sehen und ändern alles, auch Preise, Rechnungen, Kostenvoranschläge und Kundenpreise. Benutzer arbeiten mit Arbeiten (auch Arbeiten für Dritte eintragen, Preise nur ansehen), Kalender, Bestellungen, Produkten (ohne Preise ändern), Kunden, Rezepten, Mischpaketen und Produktionslisten.</small></p>${tb('u','+ Neuer Benutzer')}${ui.f.u?`<form onsubmit="return addUser(this)" class="box"><div class="row"><input name="n" placeholder="Benutzername" autocapitalize="none" required><input type="password" name="p" placeholder="Passwort (min. 8 Zeichen)" autocomplete="new-password" required><select name="r"><option value="user">Benutzer</option><option value="admin">Admin</option></select><button>Anlegen</button></div></form>`:''}${rows}`;
+  return `<p><small>Admins sehen und ändern alles. Was ein Benutzer darf, stellst du unter „Rechte“ ein. Neue Benutzer starten mit den Standardrechten: alles außer Preise ändern und Rechnungen.</small></p>${tb('u','+ Neuer Benutzer')}${ui.f.u?`<form onsubmit="return addUser(this)" class="box"><div class="row"><input name="n" placeholder="Benutzername" autocapitalize="none" required><input type="password" name="p" placeholder="Passwort (min. 8 Zeichen)" autocomplete="new-password" required><select name="r"><option value="user">Benutzer</option><option value="admin">Admin</option></select><button>Anlegen</button></div></form>`:''}${rows}`;
  },
  acct(){
   return `<h1>Mein Konto</h1><p>Angemeldet als <strong>${esc(me.username)}</strong> (${isAdmin()?'Admin':'Benutzer'}).</p><h2>Passwort ändern</h2><form onsubmit="return changePw(this)" class="box"><div class="row"><input type="password" name="o" placeholder="Altes Passwort" autocomplete="current-password" required><input type="password" name="n" placeholder="Neues Passwort (min. 8 Zeichen)" autocomplete="new-password" required><input type="password" name="n2" placeholder="Neues Passwort wiederholen" autocomplete="new-password" required><button>Passwort ändern</button></div></form><p><button class="ghost" onclick="logout()">Abmelden</button></p>`;
@@ -595,18 +676,18 @@ const V={
 const NAVG=[
  {g:'',items:[['home','Start']]},
  {g:'Tagesgeschäft',items:[['tasks','Arbeiten'],['cal','Kalender']]},
- {g:'Verkauf',items:[['orders','Bestellungen'],['products','Produkte'],['customers','Kunden'],['inv','Rechnungen',1]]},
+ {g:'Verkauf',items:[['orders','Bestellungen'],['products','Produkte'],['customers','Kunden'],['inv','Rechnungen']]},
  {g:'Hof',items:[['rec','Rezepte'],['mix','Mischpakete'],['prod','Produktionslisten']]},
- {g:'Verwaltung',a:1,items:[['users','Benutzer']]}
+ {g:'',items:[['settings','Einstellungen']]}
 ];
 const NAV=NAVG.flatMap(g=>g.items);
 const BAR=[['home','Start'],['tasks','Arbeiten'],['cal','Kalender'],['orders','Bestellungen']];
-function go(v){if(!isAdmin()&&ADMV.includes(v))v='home';view=v;ui.more=false;if(v==='users')ui.users=null;R();scrollTo(0,0)}
+function go(v){if(!okView(v))v='home';view=v;ui.more=false;if(v==='users'||v==='settings')ui.users=null;R();scrollTo(0,0)}
 function toggleMore(){ui.more=!ui.more;R()}
 function R(){
- const adm=isAdmin();if(!adm&&ADMV.includes(view))view='home';
- $('#nav').innerHTML=`<div class="logo">Hofplaner</div>`+NAVG.filter(g=>!g.a||adm).map(g=>(g.g?`<div class="gh">${g.g}</div>`:'')+g.items.filter(i=>adm||!i[2]).map(([k,l])=>`<button class="${k===view?'on':''}" onclick="go('${k}')">${l}</button>`).join('')).join('')+`<div class="nf"><div id="stat" class="stat"></div><button class="${view==='acct'?'on':''}" onclick="go('acct')">${esc(me.username)} (${adm?'Admin':'Benutzer'})</button><button onclick="logout()">Abmelden</button></div>`;
- $('#bar').innerHTML=BAR.map(([k,l])=>`<button class="${k===view?'on':''}" onclick="go('${k}')">${l}</button>`).join('')+`<button class="${ui.more?'on':''}" onclick="toggleMore()">Mehr</button>`;
+ const adm=isAdmin();if(!okView(view))view='home';
+ $('#nav').innerHTML=`<div class="logo"><img src="/logo.png" alt="Hof am Schloss"><span>Hofplaner</span></div>`+NAVG.filter(g=>g.items.some(i=>okView(i[0]))).map(g=>(g.g?`<div class="gh">${g.g}</div>`:'')+g.items.filter(i=>okView(i[0])).map(([k,l])=>`<button class="${k===view?'on':''}" onclick="go('${k}')">${l}</button>`).join('')).join('')+`<div class="nf"><div id="stat" class="stat"></div><button class="${view==='acct'?'on':''}" onclick="go('acct')">${esc(me.username)} (${adm?'Admin':'Benutzer'})</button><button onclick="logout()">Abmelden</button></div>`;
+ $('#bar').innerHTML=BAR.filter(b=>okView(b[0])).map(([k,l])=>`<button class="${k===view?'on':''}" onclick="go('${k}')">${l}</button>`).join('')+`<button class="${ui.more?'on':''}" onclick="toggleMore()">Mehr</button>`;
  document.body.classList.toggle('more',!!ui.more);
  $('#main').innerHTML=V[view]();setStat(stat);
 }
