@@ -16,7 +16,7 @@ h1,h2,.logo{font-family:"Iowan Old Style","Palatino Linotype",Georgia,serif;font
 h1{font-size:2rem;margin:.2em 0 .6em}h2{font-size:1.25rem;margin:1.4em 0 .5em}
 nav{background:var(--green);color:#fff;padding:1.2rem .8rem;position:sticky;top:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column}
 #bar{display:none}
-.logo{font-size:1.5rem;padding:0 .6rem 1rem;display:flex;align-items:center;gap:.7rem}.logo img{width:52px;height:auto;flex:none}.lg h1{text-align:center}.lgi{display:block;width:110px;height:auto;margin:0 auto 1rem}.pg{display:grid;grid-template-columns:repeat(auto-fill,minmax(15rem,1fr));gap:.5rem 1rem;margin:.3rem 0 .6rem}.pk{display:flex;gap:.4rem;align-items:flex-start;flex-wrap:wrap}.pk small{display:block;width:100%;margin-left:1.7rem;color:var(--muted)}#pr table.ex{font-size:.7rem;width:100%;border-collapse:collapse}#pr table.ex th,#pr table.ex td{border:1px solid #999;padding:.15rem .3rem;text-align:left}
+.logo{font-size:1.5rem;padding:0 .6rem 1rem;display:flex;align-items:center;gap:.7rem}.logo img{width:52px;height:auto;flex:none}.lg h1{text-align:center}.lgi{display:block;width:110px;height:auto;margin:0 auto 1rem}.pg{display:grid;grid-template-columns:repeat(auto-fill,minmax(15rem,1fr));gap:.5rem 1rem;margin:.3rem 0 .6rem}.pk{display:flex;gap:.4rem;align-items:flex-start;flex-wrap:wrap}.pk small{display:block;width:100%;margin-left:1.7rem;color:var(--muted)}#pr img.pi{height:44px;width:44px;object-fit:cover;border-radius:4px;vertical-align:middle;margin-right:.5rem}#pr td{vertical-align:middle}#pr tr{break-inside:avoid}.catH{display:flex;gap:1rem;align-items:center;margin-bottom:1rem}.opi{width:56px;height:56px;object-fit:cover;border-radius:6px;border:1px solid var(--line)}#pr table.cat{table-layout:fixed;font-size:.95rem}#pr table.cat td:first-child{width:60px}#pr table.cat td:last-child{width:9rem}#pr table.ex{font-size:.7rem;width:100%;border-collapse:collapse}#pr table.ex th,#pr table.ex td{border:1px solid #999;padding:.15rem .3rem;text-align:left}
 nav button{display:block;width:100%;text-align:left;background:none;border:0;color:#dfe9e1;font:inherit;padding:.6rem .7rem;border-radius:6px;cursor:pointer}
 nav button.on{background:#fff;color:var(--green);font-weight:600}
 nav button:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #e0a800;outline-offset:1px}
@@ -121,7 +121,7 @@ function seed(){
  add('Sirup','Stk',sy);
  return{tasks:[],events:[],products:fixProd(P),customers:[],orders:[],ocats:['Frischfleisch','Pakete','Hofladen (Abholung)'],...extSeed(),...newSeed()};
 }
-function emptyDb(){return{tasks:[],events:[],products:[],customers:[],orders:[],ocats:['Frischfleisch','Pakete','Hofladen (Abholung)'],prices:[],ext:[],kvs:[],recipes:[],mix:[],pf:[],pm:[]}}
+function emptyDb(){return{tasks:[],events:[],products:[],customers:[],orders:[],ocats:['Frischfleisch','Pakete','Hofladen (Abholung)'],settings:{invImg:true},prices:[],ext:[],kvs:[],recipes:[],mix:[],pf:[],pm:[]}}
 let db=emptyDb(),view='home',ui={d:newDraft(),f:{},of:'open'},me=null;
 const isAdmin=()=>!!me&&me.role==='admin';
 const can=k=>isAdmin()||!!(me&&me.perms&&me.perms[k]);
@@ -138,7 +138,7 @@ async function api(path,body,method){
  if(!r.ok){const e=new Error(j.error||'Fehler ('+r.status+')');e.status=r.status;throw e}
  return j;
 }
-function snap(){const m=new Map();ASECS.forEach(k=>db[k].forEach(x=>m.set(k+'/'+x.id,JSON.stringify(x))));db.mix.forEach(x=>m.set('mix/'+x.name,JSON.stringify(x)));m.set('meta/ocats',JSON.stringify({list:db.ocats}));return m}
+function snap(){const m=new Map();ASECS.forEach(k=>db[k].forEach(x=>m.set(k+'/'+x.id,JSON.stringify(x))));db.mix.forEach(x=>m.set('mix/'+x.name,JSON.stringify(x)));m.set('meta/ocats',JSON.stringify({list:db.ocats}));m.set('meta/settings',JSON.stringify(db.settings));return m}
 function setStat(x){stat=x;const e=$('#stat');if(e)e.textContent=x==='ok'?'✓ Alles gespeichert':x==='sync'?'… Speichert':'⚠ Keine Verbindung, wird nachgeholt'}
 function save(){dirty=true;clearTimeout(syncT);syncT=setTimeout(sync,250);setStat('sync')}
 async function sync(){
@@ -170,6 +170,7 @@ function applyItems(items){
   if(ASECS.includes(r.sec)){const i=db[r.sec].findIndex(x=>x.id===r.id);if(i<0)db[r.sec].push(o);else db[r.sec][i]=o}
   else if(r.sec==='mix'){const i=db.mix.findIndex(x=>x.name===r.id);if(i<0)db.mix.push(o);else db.mix[i]=o}
   else if(r.sec==='meta'&&r.id==='ocats')db.ocats=o.list;
+  else if(r.sec==='meta'&&r.id==='settings')db.settings=Object.assign({invImg:true},o);
   synced.set(k,t);ch++;
  });
  return ch;
@@ -297,6 +298,13 @@ function expXlsx(){
  ];
  const a=document.createElement('a');a.href=URL.createObjectURL(zipBlob(files));a.download='Hofplaner-Export-'+today()+'.xlsx';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},3000);
 }
+function expCatalog(){
+ const na=$('#cat_na').checked,mx=$('#cat_mix').checked,ok=p=>p.avail==='ja'||(na&&p.avail==='nein'),pr=p=>p.price==null?'auf Anfrage':nf(p.price)+' €/'+p.unit;
+ let h=`<div class="catH"><img src="/logo.png" alt="" style="height:70px"><div><h1 style="margin:0">Hof am Schloss</h1><p style="margin:.2rem 0 0">Produkte und Preise, Stand ${fmtD(today())}</p></div></div>`;
+ [...new Set(db.products.filter(ok).map(p=>p.cat))].forEach(c=>{h+=`<h2>${esc(c)}</h2><table class="ex cat">${db.products.filter(p=>p.cat===c&&ok(p)).map(p=>`<tr><td style="width:60px">${p.img?`<img class="pi" src="${p.img}" alt="">`:''}</td><td>${esc(p.name)}${p.avail==='nein'?' <small>(derzeit nicht verfügbar)</small>':''}</td><td style="text-align:right;white-space:nowrap">${pr(p)}</td></tr>`).join('')}</table>`});
+ if(mx){const r=[];db.mix.forEach(t=>t.rows.forEach(x=>{if(x.price!=null)r.push(`<tr><td>Mischpaket ${esc(t.name)} ${esc(x.l)}</td><td style="text-align:right;white-space:nowrap">${nf(x.price)} € pro Paket</td></tr>`)}));if(r.length)h+=`<h2>Mischpakete</h2><table class="ex">${r.join('')}</table>`}
+ $('#pr').innerHTML=h;document.title='Produktkatalog '+today();printWhenReady();
+}
 function expPdf(){
  const l=expPick();if(!l)return;
  $('#pr').innerHTML=`<h1>Hofplaner Export</h1><p>Stand ${fmtD(today())}</p>`+l.map(e=>`<h2>${esc(e.name)}</h2>`+(e.rows.length?`<table class="ex"><tr>${e.head.map(h=>`<th>${esc(h)}</th>`).join('')}</tr>${e.rows.map(r=>`<tr>${r.map(v=>`<td>${typeof v==='number'?nf(v).replace(',00',''):esc(v)}</td>`).join('')}</tr>`).join('')}</table>`:'<p>Keine Einträge.</p>')).join('');
@@ -416,6 +424,7 @@ function suggest(el){
  const c=db.customers.find(c=>[c.name,c.email,c.tel].some(x=>x&&x.toLowerCase()===v));
  if(!c)return;readForm();Object.assign(ui.d,{name:c.name,email:c.email||'',tel:c.tel||'',adr:c.adr||''});R();
 }
+function prodImg(){const w=$('#o_pw'),sl=$('#o_prod');if(!w||!sl)return;const p=findProd(sl.value);w.innerHTML=p&&p.img?`<img class="opi" src="${p.img}" alt="Foto ${esc(p.name)}">`:''}
 function mixOpts(){
  const o=[];db.mix.forEach(t=>t.rows.forEach(r=>{if(r.price!=null)o.push(`<option value="mix:${esc(t.name)}|${esc(r.l)}">Mischpaket ${esc(t.name)} ${esc(r.l)} (${nf(r.price)} €/Paket)</option>`)}));
  return o.length?`<optgroup label="Mischpakete">${o.join('')}</optgroup>`:'';
@@ -429,7 +438,7 @@ function addItem(){
  const q=num($('#o_qty').value);let t=num($('#o_tot').value);
  if(isNaN(t)&&p.price!=null&&!isNaN(q))t=Math.round(q*p.price*100)/100;
  if(isNaN(t)||isNaN(q)){alert('Bitte Menge ('+p.unit+') eingeben, oder direkt den Gesamtpreis.');return}
- ui.d.items.push({name:p.name,unit:p.unit,qty:q,total:t});R();
+ ui.d.items.push({name:p.name,unit:p.unit,qty:q,total:t,pid:p.id});R();
 }
 function rmItem(i){readForm();ui.d.items.splice(i,1);R()}
 function addOCat(){const c=prompt('Neue Unterteilung:');if(!c)return;db.ocats.push(c);save();readForm();ui.d.cat=c;R()}
@@ -548,10 +557,12 @@ function addMixCol(t){const c=prompt('Neuer Fleischteil (z. B. Hals):');if(!c)re
 /* ---------- Rechnungen ---------- */
 async function doneO(id,paid){const o=db.orders.find(x=>x.id===id);const was=o.done;o.done=!o.done;if(!o.done)o.inv='schreiben';if(o.done){o.inv=paid?'bezahlt':(o.inv||'schreiben');if(!o.rno){try{const r=await api('/api/next',{k:'rn'});o.rno='R '+today().slice(0,4)+'/'+String(r.n).padStart(3,'0')}catch(e){o.done=was;alert('Keine Verbindung: Die Rechnungsnummer konnte nicht vergeben werden.');return}}}save();R()}
 function setInv(id,st){db.orders.find(x=>x.id===id).inv=st;save();R()}
+function printWhenReady(){Promise.all([...document.querySelectorAll('#pr img')].map(i=>i.decode?i.decode().catch(()=>{}):0)).then(()=>window.print())}
+function setInvImg(v){db.settings.invImg=!!v;save()}
 function pdfInv(id){
  const o=db.orders.find(x=>x.id===id);
- $('#pr').innerHTML=`<h1>Rechnung ${esc(o.rno||'')}</h1><p>${fmtD(o.date)}<br>${esc(o.name)}<br>${esc(o.adr||'')}</p><table>${o.items.map(i=>`<tr><td>${esc(i.name)}</td><td class="n">${nf(i.qty).replace(',00','')} ${i.unit}</td><td class="n">${nf(i.total)} €</td></tr>`).join('')}<tr><td colspan="2" class="sum">Gesamt</td><td class="n sum">${nf(sum(o.items))} €</td></tr></table><p>${o.inv==='bezahlt'?'Bezahlt':'Noch nicht bezahlt'}</p>`;
- document.title=(o.rno||'Rechnung').replace('/','-')+' '+o.name;window.print();
+ $('#pr').innerHTML=`<h1>Rechnung ${esc(o.rno||'')}</h1><p>${fmtD(o.date)}<br>${esc(o.name)}<br>${esc(o.adr||'')}</p><table>${o.items.map(i=>{const pp=db.settings.invImg?(db.products.find(x=>x.id===i.pid)||db.products.find(x=>x.name===i.name)):null;return `<tr><td>${pp&&pp.img?`<img class="pi" src="${pp.img}" alt="">`:''}${esc(i.name)}</td><td class="n">${nf(i.qty).replace(',00','')} ${i.unit}</td><td class="n">${nf(i.total)} €</td></tr>`}).join('')}<tr><td colspan="2" class="sum">Gesamt</td><td class="n sum">${nf(sum(o.items))} €</td></tr></table><p>${o.inv==='bezahlt'?'Bezahlt':'Noch nicht bezahlt'}</p>`;
+ document.title=(o.rno||'Rechnung').replace('/','-')+' '+o.name;printWhenReady();
 }
 /* ---------- Produktion ---------- */
 const SZ=['Glas 215 g','Glas 250 g','Glas 360 g','Flasche 250 ml','Flasche 500 ml'];
@@ -604,7 +615,7 @@ const V={
   const form=`<form onsubmit="return false"><div class="row"><input id="o_name" list="cl" placeholder="Name" value="${esc(d.name)}" onchange="suggest(this)"><datalist id="cl">${db.customers.map(c=>`<option value="${esc(c.name)}">`).join('')}</datalist><datalist id="cl_e">${db.customers.filter(c=>c.email).map(c=>`<option value="${esc(c.email)}">`).join('')}</datalist><input id="o_email" list="cl_e" placeholder="E-Mail" value="${esc(d.email)}" onchange="suggest(this)"><datalist id="cl_t">${db.customers.filter(c=>c.tel).map(c=>`<option value="${esc(c.tel)}">`).join('')}</datalist><input id="o_tel" list="cl_t" placeholder="Telefon" value="${esc(d.tel)}" onchange="suggest(this)"><input id="o_adr" placeholder="Adresse" value="${esc(d.adr)}" style="flex:1;min-width:12rem"><label class="fl">Abholung / Lieferung <input type="date" id="o_due" value="${esc(d.due||'')}"></label></div>`+
   `<div class="row"><select id="o_cat" onchange="readForm();R()">${db.ocats.map(c=>`<option ${c===d.cat?'selected':''}>${esc(c)}</option>`).join('')}</select><button type="button" class="ghost" onclick="addOCat()" aria-label="Unterteilung hinzufügen">+</button></div>`+
   (d.cat==='Pakete'?`<div class="row"><input id="o_l" size="5" placeholder="Länge cm" value="${esc(d.l)}"><input id="o_b" size="5" placeholder="Breite cm" value="${esc(d.b)}"><input id="o_h" size="5" placeholder="Höhe cm" value="${esc(d.h)}"><input id="o_w" size="5" placeholder="Gewicht kg" value="${esc(d.w)}"><label><input type="checkbox" id="o_f" ${d.fertig?'checked':''}> Paket ist fertig</label></div>`:'')+
-  `<div class="row"><select id="o_prod">${cats.map(c=>`<optgroup label="${esc(c)}">${av.filter(p=>p.cat===c).map(p=>`<option value="${p.id}">${esc(p.name)} (${p.price==null?'auf Anfrage':nf(p.price)+' €/'+p.unit})</option>`).join('')}</optgroup>`).join('')}${mixOpts()}</select><input id="o_qty" size="6" placeholder="kg / Stück"><input id="o_tot" size="8" placeholder="oder Gesamtpreis €"><button type="button" onclick="addItem()">Hinzufügen</button></div>`+
+  `<div class="row"><select id="o_prod" onchange="prodImg()">${cats.map(c=>`<optgroup label="${esc(c)}">${av.filter(p=>p.cat===c).map(p=>`<option value="${p.id}">${esc(p.name)} (${p.price==null?'auf Anfrage':nf(p.price)+' €/'+p.unit})</option>`).join('')}</optgroup>`).join('')}${mixOpts()}</select><span id="o_pw"></span><input id="o_qty" size="6" placeholder="kg / Stück"><input id="o_tot" size="8" placeholder="oder Gesamtpreis €"><button type="button" onclick="addItem()">Hinzufügen</button></div>`+
   (d.items.length?itemsTable(d.items,true):'')+`<div class="row"><button type="button" onclick="saveOrder()">Bestellung speichern</button></div></form>`;
   const n1=db.orders.filter(o=>!o.done).length,n2=db.orders.length-n1,list=db.orders.filter(o=>ui.of==='done'?o.done:!o.done).map(o=>`<div class="box ${o.done?'done-o':''}"><div class="row"><strong>${esc(o.name)}</strong><small>${esc(o.cat)}, ${fmtD(o.date)}</small><label class="fl">Abholung / Lieferung <input type="date" class="dt" value="${esc(o.due||'')}" onchange="setO('${o.id}','due',this.value)"></label><span style="flex:1"></span>${o.done?`<button class="ghost" onclick="doneO('${o.id}')">Wieder öffnen</button>`:`<button class="ghost" onclick="doneO('${o.id}')">Als erledigt markieren</button><button class="ghost" onclick="doneO('${o.id}',true)">Erledigt und bezahlt</button>`}<button class="x" onclick="del('o','${o.id}')" aria-label="löschen">×</button></div><small>${[o.email,o.tel,o.adr].filter(Boolean).map(esc).join(', ')}</small>`+
    (o.cat==='Pakete'?`<small>Paket: ${esc(o.l)}×${esc(o.b)}×${esc(o.h)} cm, ${esc(o.w)} kg <label><input type="checkbox" ${o.fertig?'checked':''} onchange="setO('${o.id}','fertig',this.checked)"> fertig</label></small>`:'')+itemsTable(o.items)+`</div>`).join('');
@@ -652,7 +663,7 @@ const V={
    b.push(`<button class="ghost" onclick="pdfX('${x.kind}','${x.id}')">Als PDF speichern</button>`);
    return `<div class="box"><div class="row"><strong>${esc(x.no||'Arbeit')}</strong><small>${fmtD(x.date)}</small><strong>${esc(cn(x.e))}</strong><span class="tag">Arbeiten für Dritte</span><span style="flex:1"></span><strong>${nf(x.tot)} €</strong></div><small>${esc(x.what)}</small><div class="row">${b.join('')}</div></div>`};
   const sec=(t,st)=>{const a=g(st),b=X.filter(x=>x.st===st);return `<h2>${t}</h2>`+((a.length+b.length)?a.map(oc).join('')+b.map(xc).join(''):'<p class="empty">Nichts offen.</p>')};
-  return `<h1>Rechnungen</h1><p><small>Bestellungen erscheinen hier, sobald du sie unter „Bestellungen“ als erledigt markierst. Arbeiten für Dritte erscheinen sofort, wenn du sie unter „Arbeiten → Für Dritte“ einträgst.</small></p>`+sec('Noch zu schreiben','schreiben')+sec('Noch zu kassieren','kassieren')+sec('Bezahlt','bezahlt');
+  return `<h1>Rechnungen</h1><p><small>Bestellungen erscheinen hier, sobald du sie unter „Bestellungen“ als erledigt markierst. Arbeiten für Dritte erscheinen sofort, wenn du sie unter „Arbeiten → Für Dritte“ einträgst.</small></p><label class="pk"><input type="checkbox" ${db.settings.invImg?'checked':''} onchange="setInvImg(this.checked)"> Produktfotos auf der Rechnung (PDF)</label>`+sec('Noch zu schreiben','schreiben')+sec('Noch zu kassieren','kassieren')+sec('Bezahlt','bezahlt');
  },
  prod(){
   const nm=t=>t.replace(/\s+\d+([.,]\d+)?\s*(gr?\.?|ml|l)\b.*$/i,'').trim(),dl=(id,cats,used)=>`<datalist id="${id}">${[...new Set([...db.products.filter(p=>cats.includes(p.cat)).map(p=>nm(p.name)),...used])].map(x=>`<option value="${esc(x)}">`).join('')}</datalist>`;
@@ -759,7 +770,7 @@ const V={
  },
  exportBody(){
   const E=expSets(),sel=ui.ex||(ui.ex=Object.fromEntries(E.map(e=>[e.id,true])));
-  return `<p><small>Wähle aus, was exportiert werden soll. Excel erzeugt eine Datei mit einem Blatt pro Auswahl. Bei PDF öffnet sich der Druckdialog, dort „Als PDF speichern“ wählen.</small></p><div class="box"><div class="pg">${E.map(e=>`<label class="pk"><input type="checkbox" ${sel[e.id]?'checked':''} onchange="ui.ex['${e.id}']=this.checked"> ${esc(e.name)}<small>${e.rows.length} Zeilen</small></label>`).join('')}</div><div class="row"><button onclick="expXlsx()">Excel (.xlsx) herunterladen</button><button class="ghost" onclick="expPdf()">PDF erstellen</button><button class="ghost" onclick="expAll(true)">Alles auswählen</button><button class="ghost" onclick="expAll(false)">Nichts auswählen</button></div></div>`;
+  return `<p><small>Wähle aus, was exportiert werden soll. Excel erzeugt eine Datei mit einem Blatt pro Auswahl. Bei PDF öffnet sich der Druckdialog, dort „Als PDF speichern“ wählen.</small></p><div class="box"><div class="pg">${E.map(e=>`<label class="pk"><input type="checkbox" ${sel[e.id]?'checked':''} onchange="ui.ex['${e.id}']=this.checked"> ${esc(e.name)}<small>${e.rows.length} Zeilen</small></label>`).join('')}</div><div class="row"><button onclick="expXlsx()">Excel (.xlsx) herunterladen</button><button class="ghost" onclick="expPdf()">PDF erstellen</button><button class="ghost" onclick="expAll(true)">Alles auswählen</button><button class="ghost" onclick="expAll(false)">Nichts auswählen</button></div></div><h2>Produktkatalog</h2><div class="box"><p style="margin-top:0"><small>Preisliste mit Fotos, nach Kategorien geordnet. Du kannst sie am Hofladen aushängen oder Kunden schicken. Ausgeblendete Produkte fehlen immer.</small></p><div class="row"><label class="pk"><input type="checkbox" id="cat_na"> auch derzeit nicht verfügbare Produkte</label><label class="pk"><input type="checkbox" id="cat_mix" checked> Mischpakete mit Preis</label></div><div class="row"><button onclick="expCatalog()">Produktkatalog als PDF</button></div></div>`;
  },
  cleanBody(){
   const X=extInv(),rows=[...db.orders.filter(o=>o.done&&o.rno).map(o=>`<div class="box"><div class="row"><strong>${esc(o.rno)}</strong><small>${fmtD(o.date)}</small><span>${esc(o.name)}</span><span style="flex:1"></span><strong>${nf(sum(o.items))} €</strong></div><div class="row"><button class="ghost" onclick="revertInv('${o.id}')">Rechnung zurücknehmen</button><button class="ghost" onclick="killOrder('${o.id}')">Rechnung und Bestellung löschen</button></div></div>`),...X.map(x=>`<div class="box"><div class="row"><strong>${esc(x.no||'Arbeit')}</strong><small>${fmtD(x.date)}</small><span>${esc(cn(x.e))}</span><span class="tag">Arbeiten für Dritte</span><span style="flex:1"></span><strong>${nf(x.tot)} €</strong></div><small>${esc(x.what)}</small><div class="row"><button class="ghost" onclick="killX('${x.kind}','${x.id}')">Löschen</button></div></div>`)];
@@ -795,7 +806,7 @@ function R(){
  $('#nav').innerHTML=`<div class="logo"><img src="/logo.png" alt="Hof am Schloss"><span>Hofplaner</span></div>`+NAVG.filter(g=>g.items.some(i=>okView(i[0]))).map(g=>(g.g?`<div class="gh">${g.g}</div>`:'')+g.items.filter(i=>okView(i[0])).map(([k,l])=>`<button class="${k===view?'on':''}" onclick="go('${k}')">${l}</button>`).join('')).join('')+`<div class="nf"><div id="stat" class="stat"></div><button class="${view==='acct'?'on':''}" onclick="go('acct')">${esc(me.username)} (${adm?'Admin':'Benutzer'})</button><button onclick="logout()">Abmelden</button></div>`;
  $('#bar').innerHTML=BAR.filter(b=>okView(b[0])).map(([k,l])=>`<button class="${k===view?'on':''}" onclick="go('${k}')">${l}</button>`).join('')+`<button class="${ui.more?'on':''}" onclick="toggleMore()">Mehr</button>`;
  document.body.classList.toggle('more',!!ui.more);
- $('#main').innerHTML=V[view]();setStat(stat);
+ $('#main').innerHTML=V[view]();if(view==='orders')prodImg();setStat(stat);
 }
 window.onafterprint=()=>{document.title='Hofplaner'};
 boot();
