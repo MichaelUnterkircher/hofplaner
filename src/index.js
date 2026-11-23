@@ -1,6 +1,7 @@
 // Hofplaner: Anmeldung, Rollen und gemeinsame Daten (Cloudflare Worker + D1)
 const SECS = ['tasks','events','products','customers','orders','ext','kvs','prices','recipes','pf','pm','mix','meta'];
-const ADMIN_ONLY = ['ext','kvs','prices'];
+const ADMIN_ONLY = ['kvs'];
+const ADMIN_WRITE = ['prices'];
 const MAX_DATA = 900000;
 const enc = new TextEncoder();
 
@@ -134,15 +135,26 @@ async function handle(req, env, url) {
     const now = Date.now(), st = [];
     for (const o of ops) {
       if (!o || !SECS.includes(o.sec) || typeof o.id !== 'string' || !o.id || o.id.length > 80) return err('Ungültige Änderung.');
-      if (ADMIN_ONLY.includes(o.sec) && !admin) return err('Dafür fehlt die Berechtigung.', 403);
+      if ((ADMIN_ONLY.includes(o.sec) || ADMIN_WRITE.includes(o.sec)) && !admin) return err('Dafür fehlt die Berechtigung.', 403);
       if (o.op === 'del') {
-        if (o.sec === 'products' && !admin) return err('Dafür fehlt die Berechtigung.', 403);
+        if ((o.sec === 'products' || o.sec === 'ext') && !admin) return err('Dafür fehlt die Berechtigung.', 403);
         st.push(env.DB.prepare('INSERT INTO items(sec,id,data,upd,del) VALUES(?,?,NULL,?,1) ON CONFLICT(sec,id) DO UPDATE SET data=NULL,upd=excluded.upd,del=1').bind(o.sec, o.id, now));
       } else if (o.op === 'put' && o.data && typeof o.data === 'object') {
         const d = { ...o.data };
         if (o.sec === 'products' && !admin) {
           const old = await env.DB.prepare('SELECT data FROM items WHERE sec=? AND id=? AND del=0').bind('products', o.id).first();
           if (old && old.data) { const p = JSON.parse(old.data); d.price = p.price; d.changed = p.changed; d.unit = p.unit; }
+        }
+        if (o.sec === 'ext' && !admin) {
+          const old = await env.DB.prepare('SELECT data FROM items WHERE sec=? AND id=? AND del=0').bind('ext', o.id).first();
+          const od = old && old.data ? JSON.parse(old.data) : null;
+          d.prices = od ? (od.prices || {}) : {};
+          const oj = od && Array.isArray(od.jobs) ? od.jobs : [];
+          const nj = Array.isArray(d.jobs) ? d.jobs : [];
+          const byId = new Map(oj.map(x => [x.id, x]));
+          const out = nj.map(x => { const y = byId.get(x.id); return y ? { ...x, qid: y.qid || null, inv: y.inv, lines: y.lines } : { ...x, qid: null, inv: undefined }; });
+          for (const y of oj) if (!nj.some(x => x.id === y.id) && (y.qid || (y.inv && y.inv !== 'schreiben'))) out.push(y);
+          d.jobs = out;
         }
         if (o.sec === 'tasks' && !admin) {
           const old = await env.DB.prepare('SELECT data FROM items WHERE sec=? AND id=? AND del=0').bind('tasks', o.id).first();
