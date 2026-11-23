@@ -12,12 +12,13 @@ html,body{margin:0}
 body{font:16px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink);background:var(--bg);display:grid;grid-template-columns:210px 1fr;min-height:100vh;padding-top:env(safe-area-inset-top,0px)}
 h1,h2,.logo{font-family:"Iowan Old Style","Palatino Linotype",Georgia,serif;font-weight:700}
 h1{font-size:2rem;margin:.2em 0 .6em}h2{font-size:1.25rem;margin:1.4em 0 .5em}
-nav{background:var(--green);color:#fff;padding:1.2rem .8rem;position:sticky;top:0;height:100vh}
+nav{background:var(--green);color:#fff;padding:1.2rem .8rem;position:sticky;top:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column}
+#bar{display:none}
 .logo{font-size:1.5rem;padding:0 .6rem 1rem}
 nav button{display:block;width:100%;text-align:left;background:none;border:0;color:#dfe9e1;font:inherit;padding:.6rem .7rem;border-radius:6px;cursor:pointer}
 nav button.on{background:#fff;color:var(--green);font-weight:600}
 nav button:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #e0a800;outline-offset:1px}
-main{padding:1.5rem 2rem 4rem;max-width:900px;width:100%}
+main{padding:1.5rem 2rem 4rem;max-width:900px;width:100%;min-width:0}
 button,.btn{font:inherit;padding:.45rem .9rem;border:1px solid var(--green);background:var(--green);color:#fff;border-radius:6px;cursor:pointer}
 button.ghost{background:none;color:var(--green)}
 button.x{background:none;border:0;color:var(--muted);font-size:1.3rem;padding:0 .4rem}
@@ -36,11 +37,17 @@ tr.dim{opacity:.45}.pr{width:5.5rem;text-align:right}.av label{display:inline-bl
 .sum{font-weight:700;font-size:1.1rem}
 .done-o{opacity:.5}
 .empty{color:var(--muted);padding:.5rem 0}
+.prow{display:grid;grid-template-columns:56px 1fr auto 11rem;gap:.3rem .8rem;align-items:center;padding:.5rem 0;border-bottom:1px solid var(--line)}
 @media(max-width:760px){
- body{grid-template-columns:1fr;padding-bottom:calc(60px + env(safe-area-inset-bottom,0px))}
- nav{position:fixed;inset:auto 0 0 0;height:auto;display:flex;padding:.3rem .3rem calc(.3rem + env(safe-area-inset-bottom,0px));z-index:5}
- .logo{display:none}nav{overflow-x:auto}nav button{text-align:center;padding:.5rem .6rem;font-size:.72rem;flex:0 0 auto;width:auto;white-space:nowrap}
- main{padding:1rem 1rem 2rem}.task{grid-template-columns:auto 1fr auto}.task select{display:none}
+ body{grid-template-columns:1fr;padding-bottom:calc(62px + env(safe-area-inset-bottom,0px))}
+ nav{display:none;position:fixed;inset:0 0 calc(56px + env(safe-area-inset-bottom,0px)) 0;height:auto;z-index:6;overflow-y:auto;padding:1rem}
+ body.more nav{display:flex}
+ #bar{display:flex;position:fixed;inset:auto 0 0 0;background:var(--green);padding:.2rem .2rem calc(.2rem + env(safe-area-inset-bottom,0px));z-index:7}
+ #bar button{flex:1;background:none;border:0;border-radius:6px;color:#dfe9e1;padding:.75rem .1rem;font-size:.75rem}
+ #bar button.on{background:#fff;color:var(--green);font-weight:600}
+ main{padding:1rem 1rem 2rem}.task{display:flex;flex-wrap:wrap;align-items:center;gap:.3rem .6rem}.task>div{flex:1;min-width:0}.task>span:empty{display:none}.task select{order:9;flex:1 1 100%;margin-left:2rem;max-width:14rem}
+ nav button{padding:.55rem .7rem}
+ .prow{grid-template-columns:56px 1fr}.prow .n,.prow .av2{grid-column:2}
 }
 h3{font-size:1rem;margin:1rem 0 .3rem}details{margin:.4rem 0}summary{cursor:pointer;font-weight:600;padding:.3rem 0}details.sub{margin-left:1rem}
 .job{border-top:1px solid var(--line);padding:.5rem 0}.job.inkv{background:#fff6dd}
@@ -64,18 +71,30 @@ textarea{font:inherit;width:100%;padding:.4rem .5rem;border:1px solid var(--line
 .ph input{position:absolute;opacity:0;width:1px;height:1px}
 .fl{display:flex;flex-direction:column;font-size:.75rem;color:var(--muted);gap:.1rem}
 #pr{display:none}
+.prow[hidden]{display:none}.prow>*{min-width:0}.prow.dim{opacity:.5}.prow .nm{font-weight:600}.prow select{width:100%;max-width:calc(100% - 4px)}
+
+.gh{font-size:.75rem;opacity:.7;padding:1rem .7rem .2rem}
+.nf{margin-top:auto;padding-top:1rem}.stat{font-size:.75rem;padding:.3rem .7rem;opacity:.85}
+.stg{display:grid;grid-template-columns:repeat(auto-fit,minmax(9rem,1fr));gap:.6rem;margin:1rem 0}
+.stc{display:flex;flex-direction:column;align-items:flex-start;gap:.1rem;background:#fff;color:var(--ink);border:1px solid var(--line);padding:.7rem .8rem;border-radius:10px;text-align:left}
+.stc b{font:700 1.9rem/1.1 "Iowan Old Style","Palatino Linotype",Georgia,serif;color:var(--green)}.stc span{font-size:.85rem;color:var(--muted)}
+body.login{display:block}body.login nav,body.login #bar{display:none}
+.lg{max-width:24rem;margin:8vh auto;padding:0 1rem}.lg input{width:100%}.err{color:var(--red);font-weight:600}
+.urow{display:grid;grid-template-columns:1fr auto;gap:.4rem;align-items:center}
+
 @media print{body>*:not(#pr){display:none!important}#pr{display:block}body{display:block;background:#fff}}
 </style>
 </head>
 <body>
 <nav id="nav" aria-label="Hauptmenü"></nav>
+<div id="bar"></div>
 <main id="main"></main>
 <div id="pr"></div>
 <script>
 const K='hofplaner-v1';
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const uid=()=>Math.random().toString(36).slice(2,9);
+let _u=0;const uid=()=>Date.now().toString(36)+((_u=(_u+1)%1296).toString(36).padStart(2,'0'))+Math.random().toString(36).slice(2,5);
 const today=()=>new Date(Date.now()-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,10);
 const days=d=>Math.round((new Date(d+'T00:00')-new Date(today()+'T00:00'))/864e5);
 const fmtD=d=>d.split('-').reverse().join('.');
@@ -100,9 +119,117 @@ function seed(){
  add('Sirup','Stk',sy);
  return{tasks:[],events:[],products:fixProd(P),customers:[],orders:[],ocats:['Frischfleisch','Pakete','Hofladen (Abholung)'],...extSeed(),...newSeed()};
 }
-function load(){try{const d=JSON.parse(localStorage.getItem(K));if(d&&d.products){fixProd(d.products);return Object.assign(newSeed(),extSeed(),d)}}catch(e){}return seed()}
-let db=load(),view='home',ui={d:newDraft(),openForm:false};
-function save(){try{localStorage.setItem(K,JSON.stringify(db))}catch(e){if(!save.w){save.w=1;alert('Der Speicher im Browser ist voll oder gesperrt. Änderungen können beim Schließen verloren gehen. Bitte kleinere oder weniger Fotos verwenden.')}}}
+function emptyDb(){return{tasks:[],events:[],products:[],customers:[],orders:[],ocats:['Frischfleisch','Pakete','Hofladen (Abholung)'],prices:[],ext:[],kvs:[],recipes:[],mix:[],pf:[],pm:[]}}
+let db=emptyDb(),view='home',ui={d:newDraft(),f:{},of:'open'},me=null;
+const isAdmin=()=>!!me&&me.role==='admin';
+const ADMV=['inv','ext','users'];
+const ASECS=['tasks','events','products','customers','orders','ext','kvs','prices','recipes','pf','pm'];
+const MIXORD=['Rind','Hirsch','Reh','Truthahn','Schwein'];
+let synced=new Map(),seq=0,dirty=false,syncing=false,again=false,syncT=null,pendingR=false,stat='ok';
+async function api(path,body,method){
+ const r=await fetch(path,{method:method||(body===undefined?'GET':'POST'),headers:body===undefined?{}:{'content-type':'application/json'},body:body===undefined?undefined:JSON.stringify(body),credentials:'same-origin'});
+ let j={};try{j=await r.json()}catch(e){}
+ if(!r.ok){const e=new Error(j.error||'Fehler ('+r.status+')');e.status=r.status;throw e}
+ return j;
+}
+function snap(){const m=new Map();ASECS.forEach(k=>db[k].forEach(x=>m.set(k+'/'+x.id,JSON.stringify(x))));db.mix.forEach(x=>m.set('mix/'+x.name,JSON.stringify(x)));m.set('meta/ocats',JSON.stringify({list:db.ocats}));return m}
+function setStat(x){stat=x;const e=$('#stat');if(e)e.textContent=x==='ok'?'✓ Alles gespeichert':x==='sync'?'… Speichert':'⚠ Keine Verbindung, wird nachgeholt'}
+function save(){dirty=true;clearTimeout(syncT);syncT=setTimeout(sync,250);setStat('sync')}
+async function sync(){
+ if(syncing){again=true;return}syncing=true;
+ try{
+  do{again=false;const cur=snap(),ops=[];
+   cur.forEach((v,k)=>{if(synced.get(k)!==v){const i=k.indexOf('/');ops.push({op:'put',sec:k.slice(0,i),id:k.slice(i+1),data:JSON.parse(v)})}});
+   synced.forEach((v,k)=>{if(!cur.has(k)){const i=k.indexOf('/');ops.push({op:'del',sec:k.slice(0,i),id:k.slice(i+1)})}});
+   for(let i=0;i<ops.length;i+=100)await api('/api/sync',{ops:ops.slice(i,i+100)});
+   ops.forEach(o=>{const k=o.sec+'/'+o.id;if(o.op==='put')synced.set(k,cur.get(k));else synced.delete(k)});
+  }while(again);
+  dirty=false;setStat('ok');
+ }catch(e){
+  if(e.status===401){location.reload();return}
+  if(e.status===403||e.status===413){syncing=false;dirty=false;alert(e.message);await loadAll();R();return}
+  setStat('off');setTimeout(sync,5000);
+ }finally{syncing=false}
+}
+function applyItems(items){
+ let ch=0;
+ items.forEach(r=>{const k=r.sec+'/'+r.id;
+  if(r.del){
+   if(ASECS.includes(r.sec)){const n=db[r.sec].length;db[r.sec]=db[r.sec].filter(x=>x.id!==r.id);if(db[r.sec].length!==n)ch++}
+   else if(r.sec==='mix'){const n=db.mix.length;db.mix=db.mix.filter(x=>x.name!==r.id);if(db.mix.length!==n)ch++}
+   synced.delete(k);return;
+  }
+  let o;try{o=JSON.parse(r.data)}catch(e){return}
+  const t=JSON.stringify(o);if(synced.get(k)===t)return;
+  if(ASECS.includes(r.sec)){const i=db[r.sec].findIndex(x=>x.id===r.id);if(i<0)db[r.sec].push(o);else db[r.sec][i]=o}
+  else if(r.sec==='mix'){const i=db.mix.findIndex(x=>x.name===r.id);if(i<0)db.mix.push(o);else db.mix[i]=o}
+  else if(r.sec==='meta'&&r.id==='ocats')db.ocats=o.list;
+  synced.set(k,t);ch++;
+ });
+ return ch;
+}
+function sortAll(){
+ ASECS.forEach(k=>db[k].sort((a,b)=>a.id<b.id?-1:1));
+ db.orders.reverse();
+ db.mix.sort((a,b)=>(MIXORD.indexOf(a.name)+1||99)-(MIXORD.indexOf(b.name)+1||99));
+ fixProd(db.products);
+}
+async function loadAll(){
+ const r=await api('/api/data?since=0');
+ db=emptyDb();synced=new Map();applyItems(r.items);seq=r.now;
+ if(!r.items.length&&isAdmin())db=Object.assign(emptyDb(),seed());
+ else if(!db.mix.length)db.mix=mixData();
+ sortAll();
+ if(snap().size!==synced.size)save();
+}
+function busy(){
+ const a=document.activeElement;if(a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName))return true;
+ return [...document.querySelectorAll('#main input:not([type=checkbox]):not([type=radio]):not([type=file]),#main textarea')].some(e=>e.value!==e.defaultValue);
+}
+async function poll(){
+ if(!me)return;
+ if(pendingR&&!busy()){pendingR=false;R()}
+ if(syncing||dirty)return;
+ try{
+  const r=await api('/api/data?since='+Math.max(0,seq-5000));
+  if(syncing||dirty)return;
+  const n=applyItems(r.items);seq=r.now;
+  if(n){sortAll();if(busy())pendingR=true;else R()}
+  if(stat!=='ok')setStat('ok');
+ }catch(e){if(e.status===401)location.reload();else setStat('off')}
+}
+async function startApp(){
+ document.body.classList.remove('login');
+ await loadAll();
+ setInterval(poll,15000);
+ document.addEventListener('visibilitychange',()=>{if(!document.hidden)poll()});
+ window.onbeforeunload=e=>{if(dirty||syncing){e.preventDefault();e.returnValue=''}};
+ R();
+}
+function loginHtml(msg){return `<div class="lg"><h1>Hofplaner</h1><form onsubmit="return doLogin(this)" class="box"><label class="fl">Benutzername<input name="u" autocomplete="username" autocapitalize="none" autocorrect="off" required></label><label class="fl" style="margin-top:.7rem">Passwort<input type="password" name="p" autocomplete="current-password" required></label>${msg?`<p class="err" role="alert">${esc(msg)}</p>`:''}<div class="row"><button>Anmelden</button></div></form></div>`}
+function setupHtml(st,msg){return `<div class="lg"><h1>Hofplaner einrichten</h1>${st.setupConfigured?'':'<div class="box"><p class="err">Es fehlt noch ein Einrichtungscode.</p><p>In Cloudflare beim Projekt unter <strong>Einstellungen</strong>, <strong>Variablen und Geheimnisse</strong> ein Geheimnis (Secret) mit dem Namen <strong>SETUP_CODE</strong> anlegen und einen beliebigen Code als Wert eintragen. Danach diese Seite neu laden.</p></div>'}<form onsubmit="return doSetup(this)" class="box"><p>Lege den ersten Admin an.</p><label class="fl">Einrichtungscode<input name="c" autocomplete="off" required></label><label class="fl" style="margin-top:.7rem">Benutzername<input name="u" autocomplete="username" autocapitalize="none" required></label><label class="fl" style="margin-top:.7rem">Passwort (mindestens 8 Zeichen)<input type="password" name="p" autocomplete="new-password" required></label><label class="fl" style="margin-top:.7rem">Passwort wiederholen<input type="password" name="p2" autocomplete="new-password" required></label>${msg?`<p class="err" role="alert">${esc(msg)}</p>`:''}<div class="row"><button>Admin anlegen</button></div></form></div>`}
+async function showLogin(msg){
+ document.body.classList.add('login');
+ let st={needsSetup:false,setupConfigured:true};try{st=await api('/api/status')}catch(e){}
+ $('#main').innerHTML=st.needsSetup?setupHtml(st,msg):loginHtml(msg);
+}
+function doLogin(f){api('/api/login',{username:f.u.value,password:f.p.value}).then(r=>{me=r.user;return startApp()}).catch(e=>showLogin(e.message));return false}
+function doSetup(f){
+ if(f.p.value!==f.p2.value){showLogin('Die Passwörter stimmen nicht überein.');return false}
+ api('/api/setup',{code:f.c.value,username:f.u.value,password:f.p.value}).then(r=>{me=r.user;return startApp()}).catch(e=>showLogin(e.message));return false;
+}
+function logout(){api('/api/logout',{}).catch(()=>{}).finally(()=>location.reload())}
+async function boot(){try{me=(await api('/api/me')).user}catch(e){me=null}if(!me){await showLogin();return}await startApp()}
+const tb=(k,l)=>`<div class="row"><button class="${ui.f[k]?'ghost':''}" onclick="tf('${k}')">${ui.f[k]?'Schließen':l}</button></div>`;
+async function loadUsers(){try{ui.users=(await api('/api/users')).users}catch(e){alert(e.message);ui.users=[]}R()}
+async function addUser(f){try{await api('/api/users',{username:f.n.value.trim(),password:f.p.value,role:f.r.value});ui.f.u=false;await loadUsers()}catch(e){alert(e.message)}return false}
+async function setRole(id,r){try{await api('/api/users/'+id,{role:r},'PATCH')}catch(e){alert(e.message)}loadUsers()}
+async function setUPw(id){const i=$('#up_'+id);if(!i||!i.value)return alert('Bitte ein neues Passwort eingeben.');try{await api('/api/users/'+id,{password:i.value},'PATCH');alert('Passwort geändert. Der Benutzer muss sich neu anmelden.');loadUsers()}catch(e){alert(e.message)}}
+async function delUser(id){const u=ui.users.find(x=>x.id===id);if(!confirm('Benutzer „'+u.username+'“ löschen?'))return;try{await api('/api/users/'+id,undefined,'DELETE')}catch(e){alert(e.message)}loadUsers()}
+async function changePw(f){if(f.n.value!==f.n2.value){alert('Die neuen Passwörter stimmen nicht überein.');return false}try{await api('/api/password',{old:f.o.value,password:f.n.value});alert('Passwort geändert.');f.reset()}catch(e){alert(e.message)}return false}
+function filterP(v){ui.pq=v;const q=v.trim().toLowerCase();document.querySelectorAll('#main .prow').forEach(r=>{r.hidden=!!q&&!r.dataset.n.includes(q)});document.querySelectorAll('#main details').forEach(d=>{d.hidden=!!q&&![...d.querySelectorAll('.prow')].some(r=>!r.hidden);if(q)d.open=true})}
+function quick(v){if(v==='orders')ui.f.o=true;if(v==='cal')ui.f.ev=true;go(v)}
+function tf(k){ui.f[k]=!ui.f[k];R()}
 function newDraft(){return{items:[],cat:'Frischfleisch',name:'',email:'',tel:'',adr:'',l:'',b:'',h:'',w:'',fertig:false}}
 
 /* ---------- Arbeiten (inkl. Kalender, Pakete) ---------- */
@@ -146,7 +273,7 @@ function calGrid(){
  return `<div class="calnav"><button class="ghost" onclick="calGo(-1)" aria-label="Vorheriger Monat">‹</button><h2>${MN[m-1]} ${y}</h2><button class="ghost" onclick="calGo(1)" aria-label="Nächster Monat">›</button><button class="ghost" onclick="calGo(0)">Heute</button></div><div class="cg">${h}</div>`;
 }
 
-function addEvent(f){if(!f.title.value.trim()||!f.date.value)return false;db.events.push({id:uid(),title:f.title.value.trim(),date:f.date.value,time:f.time.value,done:false});ui.cm=f.date.value.slice(0,7);ui.sel=f.date.value;save();R();return false}
+function addEvent(f){if(!f.title.value.trim()||!f.date.value)return false;db.events.push({id:uid(),title:f.title.value.trim(),date:f.date.value,time:f.time.value,done:false});ui.cm=f.date.value.slice(0,7);ui.sel=f.date.value;ui.f.ev=false;save();R();return false}
 
 /* ---------- Produkte ---------- */
 function setPrice(id,v){const p=db.products.find(x=>x.id===id);const n=num(v);p.price=isNaN(n)?null:n;p.changed=today();save();R()}
@@ -160,7 +287,7 @@ function addProd(i){
 function addCat(){const c=prompt('Name der neuen Kategorie:');if(!c)return;const n=prompt('Erstes Produkt in '+c+':');if(!n)return;db.products.push({id:uid(),cat:c,name:n,price:null,unit:'Stk',avail:'ja',changed:today()});save();R()}
 
 /* ---------- Kunden ---------- */
-function addCust(f){const n=f.name.value.trim();if(!n)return false;db.customers.push({id:uid(),name:n,email:f.email.value,tel:f.tel.value,adr:f.adr.value,note:f.note.value});save();R();return false}
+function addCust(f){const n=f.name.value.trim();if(!n)return false;db.customers.push({id:uid(),name:n,email:f.email.value,tel:f.tel.value,adr:f.adr.value,note:f.note.value});ui.f.c=false;save();R();return false}
 function upC(id,k,v){db.customers.find(x=>x.id===id)[k]=v;save()}
 
 /* ---------- Bestellungen ---------- */
@@ -188,7 +315,7 @@ function saveOrder(){
  if(!d.name.trim()||!d.items.length){alert('Name und mindestens ein Produkt sind nötig.');return}
  if(!db.customers.some(c=>c.name.toLowerCase()===d.name.trim().toLowerCase()))db.customers.push({id:uid(),name:d.name.trim(),email:d.email,tel:d.tel,adr:d.adr,note:''});
  db.orders.unshift({id:uid(),date:today(),...d,name:d.name.trim(),done:false,shipped:false});
- ui.d=newDraft();ui.openForm=false;save();R();
+ ui.d=newDraft();ui.f.o=false;save();R();
 }
 const sum=items=>items.reduce((s,i)=>s+i.total,0);
 function itemsTable(items,rm){return `<table>${items.map((i,n)=>`<tr><td>${esc(i.name)}</td><td class="n">${nf(i.qty).replace(',00','')} ${i.unit}</td><td class="n">${nf(i.total)} €</td>${rm?`<td><button class="x" onclick="rmItem(${n})" aria-label="entfernen">×</button></td>`:''}</tr>`).join('')}<tr><td colspan="2" class="sum">Gesamtsumme</td><td class="n sum">${nf(sum(items))} €</td>${rm?'<td></td>':''}</tr></table>`}
@@ -235,11 +362,11 @@ function moveJob(eid,jid){const e=fe(eid),j=e.jobs.find(x=>x.id===jid),t=$('#mv_
  if(!conf2('„'+j.what+'“ zu '+cn(T)+' verschieben?'))return;
  e.jobs=e.jobs.filter(x=>x!==j);T.jobs.push(j);save();R()}
 function delJob(eid,jid){const e=fe(eid),j=e.jobs.find(x=>x.id===jid);if(j.qid){alert('Die Arbeit ist in einem Kostenvoranschlag. Zuerst dort entfernen.');return}if(!confirm('Arbeit löschen?'))return;e.jobs=e.jobs.filter(x=>x!==j);save();R()}
-function mkKV(eid,all){
+async function mkKV(eid,all){
  const e=fe(eid),ids=[...document.querySelectorAll('.jsel_'+eid+':checked')].map(x=>x.value),fr=e.jobs.filter(j=>!j.qid),sel=all?fr:fr.filter(j=>ids.includes(j.id)),t=$('#kt_'+eid).value;
  if(!sel.length){alert('Keine Arbeiten ausgewählt.');return}
  let k=t==='new'?null:db.kvs.find(x=>x.id===t);
- if(!k){db.qn=(db.qn||0)+1;k={id:uid(),eid,no:'KV '+new Date().getFullYear()+'/'+String(db.qn).padStart(3,'0'),date:today(),confirmed:false,paid:false};db.kvs.push(k)}
+ if(!k){let r;try{r=await api('/api/next',{k:'qn'})}catch(e){alert('Keine Verbindung: Die Nummer konnte nicht vergeben werden.');return}k={id:uid(),eid,no:'KV '+new Date().getFullYear()+'/'+String(r.n).padStart(3,'0'),date:today(),confirmed:false,paid:false};db.kvs.push(k)}
  sel.forEach(j=>j.qid=k.id);save();R()}
 function rmKV(eid,jid){const e=fe(eid),j=e.jobs.find(x=>x.id===jid),q=j.qid;j.qid=null;if(!e.jobs.some(x=>x.qid===q))db.kvs=db.kvs.filter(k=>k.id!==q);save();R()}
 function okKV(id){const k=db.kvs.find(x=>x.id===id);if(!conf2(k.no+' bestätigen? Danach kann er nicht mehr geändert werden und die Arbeiten verschwinden aus der Gesamtübersicht.'))return;k.confirmed=true;k.date=today();save();R()}
@@ -276,7 +403,7 @@ function setMix(t,r,c,v){const n=num(v);db.mix[t].rows[r].v[c]=isNaN(n)?null:n;s
 function addMixRow(t){const l=prompt('Neue Paketgröße (z. B. 12 kg):');if(!l)return;db.mix[t].rows.push({l:l.trim(),v:db.mix[t].cols.map(()=>null)});save();R()}
 function addMixCol(t){const c=prompt('Neuer Fleischteil (z. B. Hals):');if(!c)return;db.mix[t].cols.push(c.trim());db.mix[t].rows.forEach(r=>r.v.push(null));save();R()}
 /* ---------- Rechnungen ---------- */
-function doneO(id){const o=db.orders.find(x=>x.id===id);o.done=!o.done;if(o.done){if(!o.rno){db.rn=(db.rn||0)+1;o.rno='R '+today().slice(0,4)+'/'+String(db.rn).padStart(3,'0')}o.inv=o.inv||'schreiben'}save();R()}
+async function doneO(id){const o=db.orders.find(x=>x.id===id);const was=o.done;o.done=!o.done;if(o.done){o.inv=o.inv||'schreiben';if(!o.rno){try{const r=await api('/api/next',{k:'rn'});o.rno='R '+today().slice(0,4)+'/'+String(r.n).padStart(3,'0')}catch(e){o.done=was;alert('Keine Verbindung: Die Rechnungsnummer konnte nicht vergeben werden.');return}}}save();R()}
 function setInv(id,st){db.orders.find(x=>x.id===id).inv=st;save();R()}
 function pdfInv(id){
  const o=db.orders.find(x=>x.id===id);
@@ -287,18 +414,22 @@ function pdfInv(id){
 const SZ=['Glas 215 g','Glas 250 g','Glas 360 g','Flasche 250 ml','Flasche 500 ml'];
 function pNo(l,d){const y=(d||today()).slice(0,4);let m=0;l.forEach(x=>{if(x.date.slice(0,4)===y)m=Math.max(m,parseInt(x.no)||0)});return (m+1)+'/'+y.slice(2)}
 function addPF(f){const w=f.what.value.trim(),kg=num(f.kg.value);if(!w||isNaN(kg)||!f.date.value){alert('Bitte Datum, „Was?“ und die Menge in kg eingeben.');return false}
- db.pf.push({id:uid(),no:pNo(db.pf,f.date.value),date:f.date.value,what:w,kg,rind:f.rind.value,wild:f.wild.value,mager:f.mager.value,speck:f.speck.value});save();R();return false}
+ db.pf.push({id:uid(),no:pNo(db.pf,f.date.value),date:f.date.value,what:w,kg,rind:f.rind.value,wild:f.wild.value,mager:f.mager.value,speck:f.speck.value});ui.f.pf=false;save();R();return false}
 function addPM(f){const w=f.what.value.trim(),fr=num(f.fruit.value),fills={};SZ.forEach((z,i)=>{const n=parseInt(f['s'+i].value);if(n>0)fills[z]=n});
  if(!w||!f.date.value||!Object.keys(fills).length){alert('Bitte Datum, „Was?“ und mindestens eine abgefüllte Größe mit Stückzahl eingeben.');return false}
- db.pm.push({id:uid(),no:pNo(db.pm,f.date.value),date:f.date.value,what:w,fruit:isNaN(fr)?null:fr,fills,rest:f.rest.value.trim()});save();R();return false}
+ db.pm.push({id:uid(),no:pNo(db.pm,f.date.value),date:f.date.value,what:w,fruit:isNaN(fr)?null:fr,fills,rest:f.rest.value.trim()});ui.f.pm=false;save();R();return false}
 function delP(k,id){if(!confirm('Eintrag löschen?'))return;db[k]=db[k].filter(x=>x.id!==id);save();R()}
 function setImg(id,inp){const f=inp.files[0];if(!f)return;const fr=new FileReader();fr.onload=()=>{const im=new Image();im.onload=()=>{const r=Math.min(1,240/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*r);c.height=Math.round(im.height*r);c.getContext('2d').drawImage(im,0,0,c.width,c.height);db.products.find(x=>x.id===id).img=c.toDataURL('image/jpeg',.75);save();R()};im.src=fr.result};fr.readAsDataURL(f)}
 
 /* ---------- Ansichten ---------- */
 const V={
  home(){
-  const open=allTasks().filter(t=>!t.done).sort((a,b)=>a.p-b.p);
-  return `<h1>Anstehende Arbeiten</h1>`+(open.length?`<ul class="tl">${open.map(row).join('')}</ul>`:'<p class="empty">Nichts offen. Neue Arbeiten legst du unter „Arbeiten“ an.</p>');
+  const adm=isAdmin(),all=allTasks(),open=all.filter(t=>!t.done).sort((a,b)=>a.p-b.p),ev=all.filter(t=>t.k==='e'&&!t.done&&days(t.date)>=0&&days(t.date)<=7).sort((a,b)=>a.date.localeCompare(b.date)),ship=open.filter(t=>t.k==='s').length;
+  const i0=db.orders.filter(o=>o.done&&(o.inv||'schreiben')==='schreiben').length,i1=db.orders.filter(o=>o.done&&o.inv==='kassieren').length+db.kvs.filter(k=>k.confirmed&&!k.paid).length;
+  const c=(n,l,v)=>`<button class="stc" onclick="go('${v}')"><b>${n}</b><span>${l}</span></button>`;
+  return `<h1>Guten Tag, ${esc(me.username)}</h1><div class="row"><button onclick="quick('tasks')">+ Neue Arbeit</button><button class="ghost" onclick="quick('orders')">+ Neue Bestellung</button><button class="ghost" onclick="quick('cal')">+ Neuer Termin</button></div><div class="stg">${c(open.length,'offene Arbeiten','tasks')}${c(ev.length,'Termine in 7 Tagen','cal')}${c(ship,'Pakete zu versenden','tasks')}${adm?c(i0,'Rechnungen zu schreiben','inv')+c(i1,'Rechnungen zu kassieren','inv'):''}</div>`+
+  (ev.length?`<h2>Nächste Termine</h2><ul class="tl">${ev.map(row).join('')}</ul>`:'')+
+  `<h2>Offene Arbeiten</h2>`+(open.length?`<ul class="tl">${open.map(row).join('')}</ul>`:'<p class="empty">Nichts offen. Neue Arbeiten legst du unter „Arbeiten“ an.</p>');
  },
  tasks(){
   const a=allTasks();
@@ -310,7 +441,7 @@ const V={
  cal(){
   const ev=[...db.events].sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time)),sel=ui.sel||today(),sd=ev.filter(e=>e.date===sel);
   const li=e=>`<li class="task ev ${e.done?'done':''}"><span></span><div><span>${esc(e.title)}</span><small>${fmtD(e.date)}${e.time?', '+e.time+' Uhr':''}</small></div><span></span><button class="x" onclick="del('e','${e.id}')" aria-label="löschen">×</button></li>`;
-  return `<h1>Kalender</h1>${calGrid()}<form onsubmit="return addEvent(this)" class="row"><input name="title" placeholder="Termin" required style="flex:1;min-width:10rem"><input type="date" name="date" value="${sel}" required><input type="time" name="time" required><button>Termin eintragen</button></form>`+
+  return `<h1>Kalender</h1>${calGrid()}${tb('ev','+ Neuer Termin')}${ui.f.ev?`<form onsubmit="return addEvent(this)" class="row"><input name="title" placeholder="Termin" required style="flex:1;min-width:10rem"><input type="date" name="date" value="${sel}" required><input type="time" name="time" required><button>Termin eintragen</button></form>`:''}`+
   `<h2>Termine am ${fmtD(sel)}</h2>`+(sd.length?`<ul class="tl">${sd.map(li).join('')}</ul>`:'<p class="empty">An diesem Tag ist nichts eingetragen.</p>')+
   `<h2>Alle Termine</h2>`+(ev.length?`<ul class="tl">${ev.map(li).join('')}</ul>`:'<p class="empty">Noch keine Termine.</p>')+
   `<p><small>Termine erscheinen automatisch unter „Arbeiten“: ab 2 Wochen vorher mit mittlerer, 2 Tage vorher mit hoher Priorität.</small></p>`;
@@ -322,13 +453,15 @@ const V={
   (d.cat==='Pakete'?`<div class="row"><input id="o_l" size="5" placeholder="Länge cm" value="${esc(d.l)}"><input id="o_b" size="5" placeholder="Breite cm" value="${esc(d.b)}"><input id="o_h" size="5" placeholder="Höhe cm" value="${esc(d.h)}"><input id="o_w" size="5" placeholder="Gewicht kg" value="${esc(d.w)}"><label><input type="checkbox" id="o_f" ${d.fertig?'checked':''}> Paket ist fertig</label></div>`:'')+
   `<div class="row"><select id="o_prod">${cats.map(c=>`<optgroup label="${esc(c)}">${av.filter(p=>p.cat===c).map(p=>`<option value="${p.id}">${esc(p.name)} (${p.price==null?'auf Anfrage':nf(p.price)+' €/'+p.unit})</option>`).join('')}</optgroup>`).join('')}</select><input id="o_qty" size="6" placeholder="kg / Stück"><input id="o_tot" size="8" placeholder="oder Gesamtpreis €"><button type="button" onclick="addItem()">Hinzufügen</button></div>`+
   (d.items.length?itemsTable(d.items,true):'')+`<div class="row"><button type="button" onclick="saveOrder()">Bestellung speichern</button></div></form>`;
-  const list=db.orders.map(o=>`<div class="box ${o.done?'done-o':''}"><div class="row"><strong>${esc(o.name)}</strong><small>${esc(o.cat)}, ${fmtD(o.date)}</small><span style="flex:1"></span><button class="ghost" onclick="doneO('${o.id}')">${o.done?'Wieder öffnen':'Als erledigt markieren'}</button><button class="x" onclick="del('o','${o.id}')" aria-label="löschen">×</button></div><small>${[o.email,o.tel,o.adr].filter(Boolean).map(esc).join(', ')}</small>`+
+  const n1=db.orders.filter(o=>!o.done).length,n2=db.orders.length-n1,list=db.orders.filter(o=>ui.of==='done'?o.done:!o.done).map(o=>`<div class="box ${o.done?'done-o':''}"><div class="row"><strong>${esc(o.name)}</strong><small>${esc(o.cat)}, ${fmtD(o.date)}</small><span style="flex:1"></span><button class="ghost" onclick="doneO('${o.id}')">${o.done?'Wieder öffnen':'Als erledigt markieren'}</button><button class="x" onclick="del('o','${o.id}')" aria-label="löschen">×</button></div><small>${[o.email,o.tel,o.adr].filter(Boolean).map(esc).join(', ')}</small>`+
    (o.cat==='Pakete'?`<small>Paket: ${esc(o.l)}×${esc(o.b)}×${esc(o.h)} cm, ${esc(o.w)} kg <label><input type="checkbox" ${o.fertig?'checked':''} onchange="setO('${o.id}','fertig',this.checked)"> fertig</label></small>`:'')+itemsTable(o.items)+`</div>`).join('');
-  return `<h1>Bestellungen</h1><h2>Neue Bestellung</h2>${form}<h2>Alle Bestellungen</h2>${list||'<p class="empty">Noch keine Bestellungen.</p>'}`;
+  return `<h1>Bestellungen</h1>${tb('o','+ Neue Bestellung')}${ui.f.o?`<h2>Neue Bestellung</h2>${form}`:''}<div class="row"><button class="${ui.of==='open'?'':'ghost'}" onclick="ui.of='open';R()">Offen (${n1})</button><button class="${ui.of==='done'?'':'ghost'}" onclick="ui.of='done';R()">Erledigt (${n2})</button></div>${list||'<p class="empty">Keine Bestellungen in dieser Liste.</p>'}`;
  },
  products(){
-  const cats=[...new Set(db.products.map(p=>p.cat))];
-  return `<h1>Produkte</h1>`+cats.map((c,i)=>`<h2>${esc(c)}</h2><table>${db.products.filter(p=>p.cat===c).map(p=>`<tr class="${p.avail==='aus'?'dim':''}"><td style="width:64px"><label class="ph">${p.img?`<img src="${p.img}" alt="Foto ${esc(p.name)}">`:'<span>Foto</span>'}<input type="file" accept="image/*" onchange="setImg('${p.id}',this)" aria-label="Foto für ${esc(p.name)}"></label></td><td>${esc(p.name)}</td><td class="n"><input class="pr" value="${p.price==null?'':nf(p.price)}" placeholder="Anfrage" onchange="setPrice('${p.id}',this.value)" aria-label="Preis"> €/${p.unit}<small>${p.changed?'geändert '+fmtD(p.changed):''}</small></td><td class="av">${[['ja','verfügbar'],['nein','nicht verfügbar'],['aus','ausgeblendet']].map(([a,l])=>`<label><input type="radio" name="a${p.id}" ${p.avail===a?'checked':''} onchange="setAv('${p.id}','${a}')"> ${l}</label>`).join('')}</td></tr>`).join('')}</table><p><button class="ghost" onclick="addProd(${i})">+ Produkt hinzufügen</button></p>`).join('')+`<p><button onclick="addCat()">+ Neue Kategorie</button></p>`;
+  const cats=[...new Set(db.products.map(p=>p.cat))],adm=isAdmin(),q=(ui.pq||'').toLowerCase();
+  const row=p=>`<div class="prow ${p.avail!=='ja'?'dim':''}" data-n="${esc(p.name.toLowerCase())}"><label class="ph">${p.img?`<img src="${p.img}" alt="Foto ${esc(p.name)}">`:'<span>Foto</span>'}<input type="file" accept="image/*" onchange="setImg('${p.id}',this)" aria-label="Foto für ${esc(p.name)}"></label><div><div class="nm">${esc(p.name)}</div>${p.changed?`<small>Preis geändert ${fmtD(p.changed)}</small>`:''}</div><div class="n"><input class="pr" value="${p.price==null?'':nf(p.price)}" placeholder="Anfrage" onchange="setPrice('${p.id}',this.value)" aria-label="Preis ${esc(p.name)}" ${adm?'':'disabled'}> €/${p.unit}</div><select class="av2" onchange="setAv('${p.id}',this.value)" aria-label="Verfügbarkeit ${esc(p.name)}"><option value="ja" ${p.avail==='ja'?'selected':''}>Verfügbar</option><option value="nein" ${p.avail==='nein'?'selected':''}>Nicht verfügbar</option><option value="aus" ${p.avail==='aus'?'selected':''}>Ausgeblendet</option></select></div>`;
+  return `<h1>Produkte</h1><div class="row"><input type="search" id="pq" placeholder="Produkt suchen" value="${esc(ui.pq||'')}" oninput="filterP(this.value)" style="flex:1;min-width:12rem" aria-label="Produkt suchen"><button class="ghost" onclick="addCat()">+ Neue Kategorie</button></div>`+
+   cats.map((c,i)=>{const l=db.products.filter(p=>p.cat===c),nn=l.filter(p=>p.avail!=='ja').length;return det('pc'+i,`${esc(c)} <small style="display:inline">(${l.length}${nn?', '+nn+' nicht verfügbar oder ausgeblendet':''})</small>`,l.map(row).join('')+`<p><button class="ghost" onclick="addProd(${i})">+ Produkt hinzufügen</button></p>`)}).join('');
  },
  ext(){
   const cats=[...new Set(db.prices.map(p=>p.cat))];
@@ -368,24 +501,44 @@ const V={
   const pf=[...db.pf].sort((a,b)=>a.date.localeCompare(b.date)||parseInt(a.no)-parseInt(b.no)),pm=[...db.pm].sort((a,b)=>a.date.localeCompare(b.date)||parseInt(a.no)-parseInt(b.no));
   const dd=x=>x?fmtD(x):'/';
   const t1=grp(db.pf,(g,x)=>{g.n+=x.kg}),t2=grp(db.pm,(g,x)=>{g.fr+=x.fruit||0;Object.entries(x.fills).forEach(([z,n])=>g.z[z]=(g.z[z]||0)+n)});
-  return `<h1>Produktionslisten</h1><h2>Fleisch</h2>${dl('wl1',['Speck','Kaminwurz','Salami','Geräuchertes'],db.pf.map(x=>x.what))}<form onsubmit="return addPF(this)"><div class="row">${fl('Datum',`<input type="date" name="date" value="${today()}" required>`)}${fl('Was?',`<input name="what" list="wl1" size="14" required>`)}${fl('kg','<input name="kg" size="5" required>')}</div><div class="row">${fl('Rindfleisch',dI('rind'))}${fl('Wildfleisch',dI('wild'))}${fl('Magerfleisch',dI('mager'))}${fl('Wurstspeck',dI('speck'))}</div><div class="row"><button>Eintragen</button><small>Lotto-Nummer wird automatisch vergeben.</small></div></form>`+
+  return `<h1>Produktionslisten</h1><h2>Fleisch</h2>${tb('pf','+ Neuer Eintrag')}${ui.f.pf?`${dl('wl1',['Speck','Kaminwurz','Salami','Geräuchertes'],db.pf.map(x=>x.what))}<form onsubmit="return addPF(this)"><div class="row">${fl('Datum',`<input type="date" name="date" value="${today()}" required>`)}${fl('Was?',`<input name="what" list="wl1" size="14" required>`)}${fl('kg','<input name="kg" size="5" required>')}</div><div class="row">${fl('Rindfleisch',dI('rind'))}${fl('Wildfleisch',dI('wild'))}${fl('Magerfleisch',dI('mager'))}${fl('Wurstspeck',dI('speck'))}</div><div class="row"><button>Eintragen</button><small>Lotto-Nummer wird automatisch vergeben.</small></div></form>`:''}`+
   (pf.length?`<div style="overflow-x:auto"><table><tr><th>Lotto</th><th>Datum</th><th>Was?</th><th class="n">kg</th><th>Rindfleisch</th><th>Wildfleisch</th><th>Magerfleisch</th><th>Wurstspeck</th><th></th></tr>${pf.map(x=>`<tr><td>${x.no}</td><td>${fmtD(x.date)}</td><td>${esc(x.what)}</td><td class="n">${nf(x.kg).replace(',00','')}</td><td>${dd(x.rind)}</td><td>${dd(x.wild)}</td><td>${dd(x.mager)}</td><td>${dd(x.speck)}</td><td><button class="x" onclick="delP('pf','${x.id}')" aria-label="löschen">×</button></td></tr>`).join('')}</table></div><h3>Übersicht Fleisch</h3><table>${t1.map(g=>`<tr><td>${esc(g.what)}</td><td class="n"><strong>${nf(g.n).replace(',00','')} kg</strong></td></tr>`).join('')}</table>`:'<p class="empty">Noch keine Einträge.</p>')+
-  `<h2>Marmeladen</h2>${dl('wl2',['Marmelade','Gelee','Sirup'],db.pm.map(x=>x.what))}<form onsubmit="return addPM(this)"><div class="row">${fl('Datum',`<input type="date" name="date" value="${today()}" required>`)}${fl('Was?',`<input name="what" list="wl2" size="14" required>`)}${fl('Menge Frucht (kg)','<input name="fruit" size="6">')}${fl('Rest vom Vorjahr','<input name="rest" size="10" placeholder="z. B. 247 St">')}</div><div class="row">${SZ.map((z,i)=>fl(z,`<input name="s${i}" size="4" inputmode="numeric" placeholder="Stück">`)).join('')}</div><div class="row"><button>Eintragen</button></div></form>`+
+  `<h2>Marmeladen</h2>${tb('pm','+ Neuer Eintrag')}${ui.f.pm?`${dl('wl2',['Marmelade','Gelee','Sirup'],db.pm.map(x=>x.what))}<form onsubmit="return addPM(this)"><div class="row">${fl('Datum',`<input type="date" name="date" value="${today()}" required>`)}${fl('Was?',`<input name="what" list="wl2" size="14" required>`)}${fl('Menge Frucht (kg)','<input name="fruit" size="6">')}${fl('Rest vom Vorjahr','<input name="rest" size="10" placeholder="z. B. 247 St">')}</div><div class="row">${SZ.map((z,i)=>fl(z,`<input name="s${i}" size="4" inputmode="numeric" placeholder="Stück">`)).join('')}</div><div class="row"><button>Eintragen</button></div></form>`:''}`+
   (pm.length?`<div style="overflow-x:auto"><table><tr><th>Lotto</th><th>Datum</th><th>Was?</th><th class="n">Frucht kg</th><th>Abgefüllt</th><th>Rest Vorjahr</th><th></th></tr>${pm.map(x=>`<tr><td>${x.no}</td><td>${fmtD(x.date)}</td><td>${esc(x.what)}</td><td class="n">${x.fruit==null?'/':nf(x.fruit).replace(',00','')}</td><td>${Object.entries(x.fills).map(([z,n])=>`${n} St. × ${z}`).join('<br>')}</td><td>${esc(x.rest)||'/'}</td><td><button class="x" onclick="delP('pm','${x.id}')" aria-label="löschen">×</button></td></tr>`).join('')}</table></div><h3>Übersicht Marmeladen und Sirup</h3><table>${t2.map(g=>`<tr><td>${esc(g.what)}</td><td class="n">${g.fr?nf(g.fr).replace(',00','')+' kg Frucht':''}</td><td>${Object.entries(g.z).map(([z,n])=>`<strong>${n}</strong> St. × ${z}`).join('<br>')}</td></tr>`).join('')}</table>`:'<p class="empty">Noch keine Einträge.</p>');
  },
+ users(){
+  if(!ui.users){loadUsers();return '<h1>Benutzer</h1><p class="empty">Lade …</p>'}
+  const rows=ui.users.map(u=>`<div class="box"><div class="row"><strong>${esc(u.username)}</strong>${u.id===me.id?'<span class="tag">du</span>':''}<span style="flex:1"></span><select onchange="setRole(${u.id},this.value)" aria-label="Rolle von ${esc(u.username)}" ${u.id===me.id?'disabled':''}><option value="user" ${u.role==='user'?'selected':''}>Benutzer</option><option value="admin" ${u.role==='admin'?'selected':''}>Admin</option></select>${u.id===me.id?'':`<button class="x" onclick="delUser(${u.id})" aria-label="${esc(u.username)} löschen">×</button>`}</div><div class="row"><input type="password" id="up_${u.id}" placeholder="Neues Passwort" autocomplete="new-password" aria-label="Neues Passwort für ${esc(u.username)}"><button class="ghost" onclick="setUPw(${u.id})">Passwort setzen</button></div></div>`).join('');
+  return `<h1>Benutzer</h1><p><small>Admins sehen und ändern alles, auch Preise, Rechnungen und „Arbeiten für Dritte“. Benutzer arbeiten mit Arbeiten, Kalender, Bestellungen, Produkten (ohne Preise ändern), Kunden, Rezepten, Mischpaketen und Produktionslisten.</small></p>${tb('u','+ Neuer Benutzer')}${ui.f.u?`<form onsubmit="return addUser(this)" class="box"><div class="row"><input name="n" placeholder="Benutzername" autocapitalize="none" required><input type="password" name="p" placeholder="Passwort (min. 8 Zeichen)" autocomplete="new-password" required><select name="r"><option value="user">Benutzer</option><option value="admin">Admin</option></select><button>Anlegen</button></div></form>`:''}${rows}`;
+ },
+ acct(){
+  return `<h1>Mein Konto</h1><p>Angemeldet als <strong>${esc(me.username)}</strong> (${isAdmin()?'Admin':'Benutzer'}).</p><h2>Passwort ändern</h2><form onsubmit="return changePw(this)" class="box"><div class="row"><input type="password" name="o" placeholder="Altes Passwort" autocomplete="current-password" required><input type="password" name="n" placeholder="Neues Passwort (min. 8 Zeichen)" autocomplete="new-password" required><input type="password" name="n2" placeholder="Neues Passwort wiederholen" autocomplete="new-password" required><button>Passwort ändern</button></div></form><p><button class="ghost" onclick="logout()">Abmelden</button></p>`;
+ },
  customers(){
-  return `<h1>Kunden</h1><form onsubmit="return addCust(this)"><div class="row"><input name="name" placeholder="Name" required><input name="email" placeholder="E-Mail"><input name="tel" placeholder="Telefon"><input name="adr" placeholder="Adresse"></div><div class="row"><input name="note" placeholder="Notiz" style="flex:1"><button>Kunde anlegen</button></div></form>`+
+  return `<h1>Kunden</h1>${tb('c','+ Neuer Kunde')}${ui.f.c?`<form onsubmit="return addCust(this)"><div class="row"><input name="name" placeholder="Name" required><input name="email" placeholder="E-Mail"><input name="tel" placeholder="Telefon"><input name="adr" placeholder="Adresse"></div><div class="row"><input name="note" placeholder="Notiz" style="flex:1"><button>Kunde anlegen</button></div></form>`:''}`+
   (db.customers.length?db.customers.map(c=>`<div class="box"><div class="row"><input value="${esc(c.name)}" onchange="upC('${c.id}','name',this.value)" aria-label="Name"><input value="${esc(c.email)}" placeholder="E-Mail" onchange="upC('${c.id}','email',this.value)"><input value="${esc(c.tel)}" placeholder="Telefon" onchange="upC('${c.id}','tel',this.value)"><input value="${esc(c.adr)}" placeholder="Adresse" onchange="upC('${c.id}','adr',this.value)"><span style="flex:1"></span><button class="x" onclick="del('c','${c.id}')" aria-label="löschen">×</button></div><input value="${esc(c.note)}" placeholder="Notiz" style="width:100%" onchange="upC('${c.id}','note',this.value)"></div>`).join(''):'<p class="empty">Noch keine Kunden.</p>');
  }
 };
-const NAV=[['home','Start'],['rec','Rezepte'],['mix','Mischpakete'],['cal','Kalender'],['tasks','Arbeiten'],['orders','Bestellungen'],['inv','Rechnungen'],['products','Produkte'],['ext','Für Dritte'],['customers','Kunden'],['prod','Produktionslisten']];
-function go(v){view=v;R();scrollTo(0,0)}
+const NAVG=[
+ {g:'',items:[['home','Start']]},
+ {g:'Tagesgeschäft',items:[['tasks','Arbeiten'],['cal','Kalender']]},
+ {g:'Verkauf',items:[['orders','Bestellungen'],['products','Produkte'],['customers','Kunden'],['inv','Rechnungen',1]]},
+ {g:'Hof',items:[['rec','Rezepte'],['mix','Mischpakete'],['prod','Produktionslisten']]},
+ {g:'Verwaltung',a:1,items:[['ext','Arbeiten für Dritte'],['users','Benutzer']]}
+];
+const NAV=NAVG.flatMap(g=>g.items);
+const BAR=[['home','Start'],['tasks','Arbeiten'],['cal','Kalender'],['orders','Bestellungen']];
+function go(v){if(!isAdmin()&&ADMV.includes(v))v='home';view=v;ui.more=false;if(v==='users')ui.users=null;R();scrollTo(0,0)}
+function toggleMore(){ui.more=!ui.more;R()}
 function R(){
- $('#nav').innerHTML=`<div class="logo">Hofplaner</div>`+NAV.map(([k,l])=>`<button class="${k===view?'on':''}" onclick="go('${k}')">${l}</button>`).join('');
- $('#main').innerHTML=V[view]();
+ const adm=isAdmin();if(!adm&&ADMV.includes(view))view='home';
+ $('#nav').innerHTML=`<div class="logo">Hofplaner</div>`+NAVG.filter(g=>!g.a||adm).map(g=>(g.g?`<div class="gh">${g.g}</div>`:'')+g.items.filter(i=>adm||!i[2]).map(([k,l])=>`<button class="${k===view?'on':''}" onclick="go('${k}')">${l}</button>`).join('')).join('')+`<div class="nf"><div id="stat" class="stat"></div><button class="${view==='acct'?'on':''}" onclick="go('acct')">${esc(me.username)} (${adm?'Admin':'Benutzer'})</button><button onclick="logout()">Abmelden</button></div>`;
+ $('#bar').innerHTML=BAR.map(([k,l])=>`<button class="${k===view?'on':''}" onclick="go('${k}')">${l}</button>`).join('')+`<button class="${ui.more?'on':''}" onclick="toggleMore()">Mehr</button>`;
+ document.body.classList.toggle('more',!!ui.more);
+ $('#main').innerHTML=V[view]();setStat(stat);
 }
 window.onafterprint=()=>{document.title='Hofplaner'};
-R();
+boot();
 </script>
 </body>
 </html>
