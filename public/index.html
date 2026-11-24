@@ -16,7 +16,7 @@ h1,h2,.logo{font-family:"Iowan Old Style","Palatino Linotype",Georgia,serif;font
 h1{font-size:2rem;margin:.2em 0 .6em}h2{font-size:1.25rem;margin:1.4em 0 .5em}
 nav{background:var(--green);color:#fff;padding:1.2rem .8rem;position:sticky;top:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column}
 #bar{display:none}
-.logo{font-size:1.5rem;padding:0 .6rem 1rem;display:flex;align-items:center;gap:.7rem}.logo img{width:52px;height:auto;flex:none}.lg h1{text-align:center}.lgi{display:block;width:110px;height:auto;margin:0 auto 1rem}.pg{display:grid;grid-template-columns:repeat(auto-fill,minmax(15rem,1fr));gap:.5rem 1rem;margin:.3rem 0 .6rem}.pk{display:flex;gap:.4rem;align-items:flex-start;flex-wrap:wrap}.pk small{display:block;width:100%;margin-left:1.7rem;color:var(--muted)}#pr img.pi{height:44px;width:44px;object-fit:cover;border-radius:4px;vertical-align:middle;margin-right:.5rem}#pr td{vertical-align:middle}#pr tr{break-inside:avoid}.catH{display:flex;gap:1rem;align-items:center;margin-bottom:1rem}.opi{width:56px;height:56px;object-fit:cover;border-radius:6px;border:1px solid var(--line)}#pr table.cat{table-layout:fixed;font-size:.95rem}#pr table.cat td:first-child{width:60px}#pr table.cat td:last-child{width:9rem}#pr table.ex{font-size:.7rem;width:100%;border-collapse:collapse}#pr table.ex th,#pr table.ex td{border:1px solid #999;padding:.15rem .3rem;text-align:left}
+.logo{font-size:1.5rem;padding:0 .6rem 1rem;display:flex;align-items:center;gap:.7rem}.logo img{width:52px;height:auto;flex:none}.lg h1{text-align:center}.okmsg{color:var(--green);font-weight:600;margin:.2rem 0}details.mv{margin-top:.2rem}details.mv summary{font-size:.8rem;color:var(--muted);cursor:pointer}.lgi{display:block;width:110px;height:auto;margin:0 auto 1rem}.pg{display:grid;grid-template-columns:repeat(auto-fill,minmax(15rem,1fr));gap:.5rem 1rem;margin:.3rem 0 .6rem}.pk{display:flex;gap:.4rem;align-items:flex-start;flex-wrap:wrap}.pk small{display:block;width:100%;margin-left:1.7rem;color:var(--muted)}#pr img.pi{height:44px;width:44px;object-fit:cover;border-radius:4px;vertical-align:middle;margin-right:.5rem}#pr td{vertical-align:middle}#pr tr{break-inside:avoid}.catH{display:flex;gap:1rem;align-items:center;margin-bottom:1rem}.opi{width:56px;height:56px;object-fit:cover;border-radius:6px;border:1px solid var(--line)}#pr table.cat{table-layout:fixed;font-size:.95rem}#pr table.cat td:first-child{width:60px}#pr table.cat td:last-child{width:9rem}#pr table.ex{font-size:.7rem;width:100%;border-collapse:collapse}#pr table.ex th,#pr table.ex td{border:1px solid #999;padding:.15rem .3rem;text-align:left}
 nav button{display:block;width:100%;text-align:left;background:none;border:0;color:#dfe9e1;font:inherit;padding:.6rem .7rem;border-radius:6px;cursor:pointer}
 nav button.on{background:#fff;color:var(--green);font-weight:600}
 nav button:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #e0a800;outline-offset:1px}
@@ -186,7 +186,7 @@ async function loadAll(){
  db=emptyDb();synced=new Map();applyItems(r.items);seq=r.now;
  if(!r.items.length&&isAdmin())db=Object.assign(emptyDb(),seed());
  else if(!db.mix.length&&can('mix'))db.mix=mixData();
- if(isAdmin())db.ext=db.ext.filter(e=>e.jobs.length||db.customers.some(c=>c.id===e.cid));
+ if(isAdmin())db.ext=db.ext.filter(e=>e.jobs.length||(db.customers.some(c=>c.id===e.cid)&&Object.keys(e.prices).length));
  sortAll();
  if(snap().size!==synced.size)save();
 }
@@ -505,35 +505,48 @@ function editSvc(id){const p=db.prices.find(x=>x.id===id),n=prompt('Name der Lei
 function delSvc(id){const p=db.prices.find(x=>x.id===id);if(!conf2('Leistung „'+p.name+'“ aus der Preisliste entfernen? Bereits eingetragene Arbeiten bleiben unverändert.'))return;db.prices=db.prices.filter(x=>x.id!==id);if(can('inv'))db.ext.forEach(e=>{delete e.prices[id]});save();R()}
 function renCat(i){const c=[...new Set(db.prices.map(p=>p.cat))][i],n=prompt('Neuer Name der Kategorie:',c);if(!n||!n.trim()||n.trim()===c)return;db.prices.forEach(p=>{if(p.cat===c)p.cat=n.trim()});save();R()}
 function addSvcCat(){const c=prompt('Name der neuen Kategorie:');if(!c||!c.trim())return;const n=prompt('Erste Leistung in '+c.trim()+':');if(!n||!n.trim())return;db.prices.push({id:uid(),cat:c.trim(),name:n.trim(),unit:prompt('Einheit (z. B. Std, m³):','Std')||'Std',price:null,changed:null});save();R()}
-function closeExt(eid){const e=fe(eid);if(e.jobs.length){alert('Bei diesem Kunden sind noch Arbeiten eingetragen. Lösche zuerst die Arbeiten (mit × oder unter Einstellungen → Löschen).');return}if(!confirm('„'+cn(e)+'“ aus der Liste „Arbeiten für Dritte“ entfernen? Der Kunde bleibt unter „Kunden“ erhalten.'))return;db.ext=db.ext.filter(x=>x.id!==eid);db.kvs=db.kvs.filter(k=>k.eid!==eid);save();R()}
-function openExt(){const s=$('#x_new');if(!s.value)return;db.ext.push({id:uid(),cid:s.value,prices:{},jobs:[]});save();R()}
+function ensureExt(cid){let e=db.ext.find(x=>x.cid===cid);if(!e){e={id:uid(),cid,prices:{},jobs:[]};db.ext.push(e)}return e}
+const xjGet=()=>ui.xj||(ui.xj={cid:'',what:'',date:today(),lines:[]});
+function xjSync(){const x=xjGet(),w=$('#xj_w'),d=$('#xj_d');if(w)x.what=w.value;if(d&&d.value)x.date=d.value}
+function xjSet(k,v,r){if(r)xjSync();xjGet()[k]=v;if(r)R()}
+function xjUnit(){const p=db.prices.find(x=>x.id===$('#xj_s').value);$('#xj_u').textContent=p?p.unit:''}
+function xjAdd(){const x=xjGet(),pid=$('#xj_s').value,h=num($('#xj_h').value);if(!pid){alert('Bitte eine Leistung wählen.');return}if(!(h>0)){alert('Bitte die Menge eintragen.');return}xjSync();const l=x.lines.find(q=>q.pid===pid);if(l)l.h+=h;else x.lines.push({pid,h});R();setTimeout(()=>{const s=$('#xj_s');if(s)s.focus()},0)}
+function xjDel(i){xjSync();xjGet().lines.splice(i,1);R()}
 function addExtCust(f){
- const n=f.name.value.trim();if(!n)return false;
+ const n=f.name.value.trim();if(!n)return false;xjSync();
  let c=db.customers.find(x=>x.name.toLowerCase()===n.toLowerCase());
- if(!c){c={id:uid(),name:n,email:f.email.value.trim(),tel:f.tel.value.trim(),adr:f.adr.value.trim(),note:f.note.value.trim()};db.customers.push(c)}
- if(db.ext.some(x=>x.cid===c.id)){alert('„'+c.name+'“ ist hier schon geöffnet.');return false}
- db.ext.push({id:uid(),cid:c.id,prices:{},jobs:[]});ui.f.xn=false;save();R();return false;
+ if(!c){c={id:uid(),name:n,email:f.email.value.trim(),tel:f.tel.value.trim(),adr:f.adr.value.trim(),note:''};db.customers.push(c)}
+ xjGet().cid=c.id;ui.f.xn=false;save();R();return false;
 }
-function newExt(){const n=prompt('Name des neuen Kunden:');if(!n)return;const c={id:uid(),name:n.trim(),email:'',tel:'',adr:'',note:''};db.customers.push(c);db.ext.push({id:uid(),cid:c.id,prices:{},jobs:[]});save();R()}
-function setCP(eid,pid,v){const e=fe(eid),p=db.prices.find(x=>x.id===pid),n=num(v);
- if(isNaN(n)||n===kn(e,p)){R();return}
- if(!conf2('Preis für '+cn(e)+' ('+p.name+') auf '+nf(n)+' € ändern?')){R();return}
- if(n===p.price)delete e.prices[pid];else e.prices[pid]=n;save();R()}
-function addJob(eid){
- const e=fe(eid),w=$('#w_'+eid).value.trim(),d=$('#d_'+eid).value||today(),L=[];
- db.prices.forEach(p=>{const i=$('#h_'+eid+'_'+p.id),h=i?num(i.value):NaN;if(h>0)L.push({name:p.name,unit:p.unit,h,pr:kn(e,p)})});
- if(!w||!L.length){alert('Bitte eintragen, was getan wurde, und bei mindestens einer Leistung die Menge.');return}
- e.jobs.push({id:uid(),what:w,date:d,lines:L,qid:null});save();R()}
-function moveJob(eid,jid){const e=fe(eid),j=e.jobs.find(x=>x.id===jid),t=$('#mv_'+jid).value;if(!t)return;const T=fe(t);
- if(!conf2('„'+j.what+'“ zu '+cn(T)+' verschieben?'))return;
+function xjSave(){
+ xjSync();const x=xjGet();
+ if(!x.cid){alert('Bitte zuerst einen Kunden wählen.');return}
+ if(!x.what.trim()){alert('Bitte eintragen, was getan wurde.');return}
+ if(!x.lines.length){alert('Bitte mindestens eine Leistung mit Menge hinzufügen.');return}
+ const e=ensureExt(x.cid),L=[];
+ for(const l of x.lines){const p=db.prices.find(q=>q.id===l.pid);if(!p)continue;const pr=kn(e,p);if(pr==null){alert('Für „'+p.name+'“ fehlt der Preis.');return}L.push({name:p.name,unit:p.unit,h:l.h,pr})}
+ e.jobs.push({id:uid(),what:x.what.trim(),date:x.date||today(),lines:L,qid:null});
+ ui.xok='Gespeichert: '+x.what.trim()+' für '+cn(e)+' ('+nf(L.reduce((a,l)=>a+l.h*l.pr,0))+' €)';
+ ui.xj={cid:x.cid,what:'',date:x.date,lines:[]};save();R();
+}
+function xsel(){const c=[...document.querySelectorAll('.jsel:checked')];let t=0;c.forEach(i=>t+=+i.dataset.t);const a=$('#xs_t'),b=$('#xs_b');if(a)a.textContent=c.length?c.length+(c.length>1?' Arbeiten':' Arbeit')+' ausgewählt: '+nf(t)+' €':'Nichts ausgewählt';if(b)b.disabled=!c.length}
+function xsAll(){document.querySelectorAll('.jsel').forEach(i=>i.checked=true);xsel()}
+async function mkKV(){
+ const ids=[...document.querySelectorAll('.jsel:checked')].map(i=>i.value),g=new Map();
+ db.ext.forEach(e=>e.jobs.forEach(j=>{if(ids.includes(j.id)&&!j.qid&&jst(j)==='schreiben'){if(!g.has(e.id))g.set(e.id,[]);g.get(e.id).push(j)}}));
+ if(!g.size)return;
+ for(const [eid,js] of g){let r;try{r=await api('/api/next',{k:'qn'})}catch(er){alert('Keine Verbindung: Die Nummer konnte nicht vergeben werden.');return}
+  const k={id:uid(),eid,no:'KV '+new Date().getFullYear()+'/'+String(r.n).padStart(3,'0'),date:today(),confirmed:false,paid:false};db.kvs.push(k);js.forEach(j=>j.qid=k.id)}
+ save();R();
+}
+function setCP(cid,pid,v){const e0=db.ext.find(x=>x.cid===cid)||{prices:{}},p=db.prices.find(x=>x.id===pid),n=num(v),c=db.customers.find(x=>x.id===cid)||{name:'?'};
+ if(isNaN(n)||n===kn(e0,p)){R();return}
+ if(!conf2('Preis für '+c.name+' ('+p.name+') auf '+nf(n)+' € ändern?')){R();return}
+ const e=ensureExt(cid);if(n===p.price)delete e.prices[pid];else e.prices[pid]=n;save();R()}
+function moveJob(eid,jid){const e=fe(eid),j=e.jobs.find(x=>x.id===jid),t=$('#mv_'+jid).value;if(!t)return;const c=db.customers.find(x=>x.id===t);
+ if(!conf2('„'+j.what+'“ zu '+c.name+' verschieben?'))return;const T=ensureExt(t);
  e.jobs=e.jobs.filter(x=>x!==j);T.jobs.push(j);save();R()}
 function delJob(eid,jid){const e=fe(eid),j=e.jobs.find(x=>x.id===jid);if(j.qid){alert('Die Arbeit ist in einem Kostenvoranschlag. Zuerst dort entfernen.');return}if(!confirm('Arbeit löschen?'))return;e.jobs=e.jobs.filter(x=>x!==j);save();R()}
-async function mkKV(eid,all){
- const e=fe(eid),ids=[...document.querySelectorAll('.jsel_'+eid+':checked')].map(x=>x.value),fr=e.jobs.filter(j=>!j.qid&&jst(j)==='schreiben'),sel=all?fr:fr.filter(j=>ids.includes(j.id)),t=$('#kt_'+eid).value;
- if(!sel.length){alert('Keine Arbeiten ausgewählt.');return}
- let k=t==='new'?null:db.kvs.find(x=>x.id===t);
- if(!k){let r;try{r=await api('/api/next',{k:'qn'})}catch(e){alert('Keine Verbindung: Die Nummer konnte nicht vergeben werden.');return}k={id:uid(),eid,no:'KV '+new Date().getFullYear()+'/'+String(r.n).padStart(3,'0'),date:today(),confirmed:false,paid:false};db.kvs.push(k)}
- sel.forEach(j=>j.qid=k.id);save();R()}
 function rmKV(eid,jid){const e=fe(eid),j=e.jobs.find(x=>x.id===jid),q=j.qid;j.qid=null;if(!e.jobs.some(x=>x.qid===q))db.kvs=db.kvs.filter(k=>k.id!==q);save();R()}
 function okKV(id){const k=db.kvs.find(x=>x.id===id);if(!conf2(k.no+' bestätigen? Danach kann er nicht mehr geändert werden und die Arbeiten verschwinden aus der Gesamtübersicht.'))return;k.confirmed=true;k.date=today();save();R()}
 function paidKV(id){const k=db.kvs.find(x=>x.id===id);setXInv('k',id,kst(k)==='bezahlt'?'kassieren':'bezahlt')}
@@ -542,16 +555,11 @@ function pdfKV(id){
  $('#pr').innerHTML=prHead()+`<h1>Kostenvoranschlag ${esc(k.no)}</h1><p>${fmtD(k.date)}<br>${esc(c.name)}<br>${esc(c.adr||'')}${c.tel||c.email?'<br>'+[c.tel,c.email].filter(Boolean).map(esc).join(' · '):''}</p><table>`+J.map(j=>`<tr><td colspan="3"><strong>${esc(j.what)}</strong> (${fmtD(j.date)})</td></tr>`+j.lines.map(l=>`<tr><td>${esc(l.name)}</td><td class="n">${nf(l.h)} ${l.unit} × ${nf(l.pr)} €</td><td class="n">${nf(l.h*l.pr)} €</td></tr>`).join('')).join('')+`<tr><td colspan="2" class="sum">Gesamt</td><td class="n sum">${nf(J.reduce((s,j)=>s+jt(j),0))} €</td></tr></table><p>${k.paid?'Bezahlt':'Noch nicht bezahlt'}</p>`;
  document.title=k.no.replace('/','-')+' '+(c.name||'');printWhenReady();
 }
-function extBox(e){
- const adm=can('inv'),KS=db.kvs.filter(k=>k.eid===e.id),vis=e.jobs.filter(j=>{if(!adm)return !j.qid&&jst(j)==='schreiben';const k=KS.find(k=>k.id===j.qid);return !(k&&k.confirmed)&&!(!j.qid&&jst(j)==='bezahlt')}),tot=vis.reduce((s,j)=>s+jt(j),0),cats=[...new Set(db.prices.map(p=>p.cat))];
- const cu=db.customers.find(x=>x.id===e.cid),kd=cu?`<small>${[cu.adr,cu.tel,cu.email].filter(Boolean).map(esc).join(' · ')||'Keine Kontaktdaten eingetragen'}</small>`+det('kd'+e.id,'Kundendaten (gleiche Daten wie unter „Kunden“)',`<div class="row"><input value="${esc(cu.name)}" onchange="upC('${cu.id}','name',this.value);R()" aria-label="Name"><input value="${esc(cu.email)}" placeholder="E-Mail" onchange="upC('${cu.id}','email',this.value)"><input value="${esc(cu.tel)}" placeholder="Telefon" onchange="upC('${cu.id}','tel',this.value)"><input value="${esc(cu.adr)}" placeholder="Adresse" onchange="upC('${cu.id}','adr',this.value)"></div><input value="${esc(cu.note)}" placeholder="Notiz" style="width:100%" onchange="upC('${cu.id}','note',this.value)">`):'<small>Kunde nicht mehr in der Kundenliste.</small>';
- const form=det('n'+e.id,'Neue Arbeit eintragen',`<div class="row"><input id="w_${e.id}" placeholder="Was wurde getan?" style="flex:1;min-width:12rem"><input type="date" id="d_${e.id}" value="${today()}"></div>`+cats.map((c,ci)=>det('f'+e.id+ci,esc(c),`<table>${db.prices.filter(p=>p.cat===c).map(p=>{const pr=kn(e,p);return `<tr><td>${esc(p.name)}</td><td class="n">${pr==null?'<small>Preis fehlt (in der Preisliste eintragen)</small>':`<input id="h_${e.id}_${p.id}" size="4" placeholder="${p.unit}"> ${nf(pr)} €/${p.unit}`}</td></tr>`}).join('')}</table>`,'sub')).join('')+`<p><button onclick="addJob('${e.id}')">Arbeit speichern</button></p>`);
- const cp=!adm?'':det('p'+e.id,'Preise dieses Kunden',`<table>${db.prices.map(p=>{const v=kn(e,p),ind=e.prices[p.id]!=null&&e.prices[p.id]!==p.price;return `<tr><td>${esc(p.name)}</td><td class="n"><input class="pr ${ind?'ind':''}" value="${v==null?'':nf(v)}" placeholder="Preis" onchange="setCP('${e.id}','${p.id}',this.value)" aria-label="Preis ${esc(p.name)}"> €/${p.unit}</td></tr>`}).join('')}</table>`);
- const jl=vis.map(j=>{const k=KS.find(k=>k.id===j.qid);return `<div class="job ${k?'inkv':''}"><div class="row">${!adm||k||jst(j)!=='schreiben'?'':`<input type="checkbox" class="jsel_${e.id}" value="${j.id}" aria-label="auswählen">`}<strong>${esc(j.what)}</strong><small>${fmtD(j.date)}</small>${!adm?'':k?`<span class="tag">in ${esc(k.no)}</span>`:`<span class="tag">Rechnung: ${jst(j)==='schreiben'?'noch zu schreiben':'noch zu kassieren'}</span>`}<span style="flex:1"></span><strong>${nf(jt(j))} €</strong><button class="x" onclick="delJob('${e.id}','${j.id}')" aria-label="löschen">×</button></div><small>${j.lines.map(l=>`${esc(l.name)}: ${nf(l.h)} ${l.unit} × ${nf(l.pr)} €`).join('; ')}</small>${k?'':`<div class="row"><select id="mv_${j.id}"><option value="">Verschieben nach …</option>${db.ext.filter(x=>x.id!==e.id).map(x=>`<option value="${x.id}">${esc(cn(x))}</option>`).join('')}</select><button class="ghost" onclick="moveJob('${e.id}','${j.id}')">Verschieben</button></div>`}</div>`}).join('');
- const dr=KS.filter(k=>!k.confirmed),fr=e.jobs.some(j=>!j.qid&&jst(j)==='schreiben');
- const ctl=adm&&fr?`<div class="row"><select id="kt_${e.id}"><option value="new">Neuer Kostenvoranschlag</option>${dr.map(k=>`<option value="${k.id}">zu ${esc(k.no)} hinzufügen</option>`).join('')}</select><button class="ghost" onclick="mkKV('${e.id}',false)">Ausgewählte aufnehmen</button><button class="ghost" onclick="mkKV('${e.id}',true)">Alle offenen aufnehmen</button></div>`:'';
- const kvh=!adm?'':KS.map(k=>{const jj=e.jobs.filter(j=>j.qid===k.id);return `<div class="box"><div class="row"><strong>${esc(k.no)}</strong><small>${fmtD(k.date)}</small><span class="tag">${k.confirmed?(k.paid?'bezahlt':'noch nicht bezahlt'):'Entwurf'}</span><span style="flex:1"></span><strong>${nf(jj.reduce((s,j)=>s+jt(j),0))} €</strong></div>${jj.map(j=>`<div class="row"><span>${esc(j.what)} (${fmtD(j.date)})</span><span style="flex:1"></span>${nf(jt(j))} €${k.confirmed?'':`<button class="x" onclick="rmKV('${e.id}','${j.id}')" aria-label="entfernen">×</button>`}</div>`).join('')}<div class="row">${k.confirmed?`<button class="ghost" onclick="paidKV('${k.id}')">${k.paid?'Als unbezahlt markieren':'Als bezahlt markieren'}</button>`:`<button onclick="okKV('${k.id}')">Bestätigen</button>`}<button class="ghost" onclick="pdfKV('${k.id}')">Als PDF speichern</button></div></div>`}).join('');
- return `<div class="box"><div class="row"><h2 style="margin:0;flex:1">${esc(cn(e))}</h2>${isAdmin()?`<button class="ghost" onclick="closeExt('${e.id}')" title="Entfernt nur diese Box, der Kunde bleibt unter Kunden erhalten">Aus dieser Liste entfernen</button>`:''}</div>${kd}${form}${cp}<h3>Gesamtübersicht</h3>${jl||'<p class="empty">Keine offenen Arbeiten.</p>'}<div class="row sum"><span style="flex:1">Summe offen</span>${nf(tot)} €</div>${ctl}${kvh?`<h3>Kostenvoranschläge</h3>${kvh}`:''}</div>`;
+function custOpts(sel){return [...db.customers].sort((a,b)=>a.name.localeCompare(b.name,'de')).map(c=>`<option value="${c.id}" ${c.id===sel?'selected':''}>${esc(c.name)}</option>`).join('')}
+function extJob(e,j,adm,KS){
+ const k=KS.find(q=>q.id===j.qid),sel=adm&&!k&&jst(j)==='schreiben';
+ const tag=!adm?'':k?`<span class="tag">${k.confirmed?'in '+esc(k.no)+(k.paid?' (bezahlt)':''):esc(k.no)+' (Entwurf)'}</span>`:`<span class="tag">Rechnung: ${{schreiben:'noch zu schreiben',kassieren:'noch zu kassieren',bezahlt:'bezahlt'}[jst(j)]}</span>`;
+ return `<div class="job ${k?'inkv':''}"><div class="row">${sel?`<input type="checkbox" class="jsel" value="${j.id}" data-t="${jt(j)}" onchange="xsel()" aria-label="auswählen">`:''}<strong>${esc(j.what)}</strong><span class="tag">${esc(cn(e))}</span><small>${fmtD(j.date)}</small>${tag}<span style="flex:1"></span><strong>${nf(jt(j))} €</strong><button class="x" onclick="delJob('${e.id}','${j.id}')" aria-label="löschen">×</button></div><small>${j.lines.map(l=>`${esc(l.name)}: ${nf(l.h)} ${l.unit} × ${nf(l.pr)} €`).join('; ')}</small>${k?'':`<details class="mv"><summary>Anderem Kunden zuordnen</summary><div class="row"><select id="mv_${j.id}"><option value="">Kunde wählen …</option>${custOpts('')}</select><button class="ghost" onclick="moveJob('${e.id}','${j.id}')">Zuordnen</button></div></details>`}</div>`;
 }
 
 
@@ -645,12 +653,23 @@ const V={
    cats.map((c,i)=>{const l=db.products.filter(p=>p.cat===c),nn=l.filter(p=>p.avail!=='ja').length;return det('pc'+i,`${esc(c)} <small style="display:inline">(${l.length}${nn?', '+nn+' nicht verfügbar oder ausgeblendet':''})</small>`,l.map(row).join('')+`<p><button class="ghost" onclick="addProd(${i})">+ Produkt hinzufügen</button></p>`)}).join('');
  },
  extBody(){
-  const cats=[...new Set(db.prices.map(p=>p.cat))];
+  const adm=can('inv'),xj=xjGet(),xf=ui.xf||(ui.xf={c:'',all:false}),KS=db.kvs,cats=[...new Set(db.prices.map(p=>p.cat))];
+  const cu=db.customers.find(c=>c.id===xj.cid),tmp=db.ext.find(x=>x.cid===xj.cid)||{prices:{}};
   const base=det('pl','Preisliste (Grundpreise)',cats.map((c,i)=>`<h3>${esc(c)} ${can('prices')?`<button class="x" onclick="renCat(${i})" aria-label="Kategorie umbenennen" title="Kategorie umbenennen">✎</button>`:''}</h3><table>${db.prices.filter(p=>p.cat===c).map(p=>`<tr><td>${esc(p.name)}</td><td class="n"><input class="pr" value="${p.price==null?'':nf(p.price)}" placeholder="Preis" onchange="setBase('${p.id}',this.value)" aria-label="Preis ${esc(p.name)}" ${can('prices')?'':'disabled'}> €/${p.unit}<small>${p.changed?'geändert '+fmtD(p.changed):'Preis fehlt'}</small></td>${can('prices')?`<td style="white-space:nowrap"><button class="x" onclick="editSvc('${p.id}')" aria-label="${esc(p.name)} bearbeiten" title="Name und Einheit ändern">✎</button><button class="x" onclick="delSvc('${p.id}')" aria-label="${esc(p.name)} entfernen" title="Leistung entfernen">×</button></td>`:''}</tr>`).join('')}</table>${can('prices')?`<button class="ghost" onclick="addSvc(${i})">+ Leistung hinzufügen</button>`:''}`).join('')+(can('prices')?'<p><button class="ghost" onclick="addSvcCat()">+ Neue Kategorie</button></p>':''));
-  const fr=db.customers.filter(c=>!db.ext.some(e=>e.cid===c.id));
-  const top=`<div class="row"><select id="x_new"><option value="">Kunde aus der Liste öffnen</option>${fr.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select><button onclick="openExt()">Öffnen</button><button class="ghost" onclick="tf('xn')">${ui.f.xn?'Schließen':'+ Neuer Kunde'}</button></div>`;
-  const xform=ui.f.xn?`<form onsubmit="return addExtCust(this)"><p style="margin-top:0"><small>Der Kunde kommt in die gemeinsame Kundenliste und steht dann auch bei Bestellungen zur Verfügung.</small></p><div class="row"><input name="name" placeholder="Name" required><input name="email" placeholder="E-Mail"><input name="tel" placeholder="Telefon"><input name="adr" placeholder="Adresse"></div><div class="row"><input name="note" placeholder="Notiz" style="flex:1"><button>Kunde anlegen und öffnen</button></div></form>`:'';
-  return `${base}<h2>Kunden</h2>${top}${xform}`+(db.ext.length?db.ext.map(extBox).join(''):'<p class="empty">Noch kein Kunde geöffnet.</p>');
+  const svc=cats.map(c=>`<optgroup label="${esc(c)}">${db.prices.filter(p=>p.cat===c).map(p=>{const pr=kn(tmp,p);return pr==null?`<option disabled>${esc(p.name)} (Preis fehlt)</option>`:`<option value="${p.id}">${esc(p.name)} (${nf(pr)} €/${p.unit})</option>`}).join('')}</optgroup>`).join('');
+  const L=xj.lines.map((l,i)=>{const p=db.prices.find(q=>q.id===l.pid);return p?{i,l,p,pr:kn(tmp,p)}:null}).filter(Boolean),tot=L.reduce((a,x)=>a+x.l.h*(x.pr||0),0);
+  const ok=ui.xok||'';ui.xok='';
+  const xform=ui.f.xn?`<form onsubmit="return addExtCust(this)" class="box"><p style="margin-top:0"><small>Der Kunde kommt in die gemeinsame Kundenliste und steht dann auch bei Bestellungen zur Verfügung.</small></p><div class="row"><input name="name" placeholder="Name" required><input name="tel" placeholder="Telefon"><input name="email" placeholder="E-Mail"><input name="adr" placeholder="Adresse"></div><div class="row"><button>Kunde anlegen und übernehmen</button></div></form>`:'';
+  const form=`<div class="box"><h2 style="margin-top:0">Neue Arbeit eintragen</h2>${ok?`<p class="okmsg">✓ ${esc(ok)}</p>`:''}<div class="row"><select id="xj_c" onchange="xjSet('cid',this.value,1)" aria-label="Kunde" style="min-width:12rem"><option value="">Kunde wählen …</option>${custOpts(xj.cid)}</select><button class="ghost" onclick="tf('xn')">${ui.f.xn?'Schließen':'+ Neuer Kunde'}</button></div>${xform}${cu?`<small>${[cu.adr,cu.tel,cu.email].filter(Boolean).map(esc).join(' · ')||'Keine Kontaktdaten eingetragen'} (Kundendaten änderst du unter „Kunden“)</small>`:''}<div class="row"><input id="xj_w" value="${esc(xj.what)}" placeholder="Was wurde getan?" onchange="xjSet('what',this.value)" style="flex:1;min-width:12rem"><input type="date" id="xj_d" value="${xj.date}" onchange="xjSet('date',this.value)" aria-label="Datum"></div>${L.length?`<table>${L.map(x=>`<tr><td>${esc(x.p.name)}</td><td class="n">${x.pr==null?'<small>Preis fehlt</small>':`${nf(x.l.h)} ${x.p.unit} × ${nf(x.pr)} €`}</td><td class="n">${nf(x.l.h*(x.pr||0))} €</td><td><button class="x" onclick="xjDel(${x.i})" aria-label="entfernen">×</button></td></tr>`).join('')}</table>`:''}<div class="row"><select id="xj_s" onchange="xjUnit()" aria-label="Leistung" style="min-width:12rem"><option value="">Leistung wählen …</option>${svc}</select><input id="xj_h" size="5" inputmode="decimal" placeholder="Menge" aria-label="Menge" onkeydown="if(event.key==='Enter'){event.preventDefault();xjAdd()}"><span id="xj_u"></span><button class="ghost" onclick="xjAdd()">+ Leistung</button></div><div class="row"><strong style="flex:1">Summe ${nf(tot)} €</strong><button onclick="xjSave()">Arbeit speichern</button></div></div>`;
+  // Liste
+  const items=[];db.ext.forEach(e=>e.jobs.forEach(j=>{if(xf.c&&e.cid!==xf.c)return;const k=KS.find(q=>q.id===j.qid);let vis;if(!adm)vis=!j.qid&&jst(j)==='schreiben';else if(xf.all)vis=true;else vis=!(k&&k.confirmed)&&!(!j.qid&&jst(j)==='bezahlt');if(vis)items.push({e,j})}));
+  items.sort((a,b)=>(b.j.date+b.j.id).localeCompare(a.j.date+a.j.id));
+  const open=items.filter(x=>!(KS.find(q=>q.id===x.j.qid)||{}).confirmed&&jst(x.j)!=='bezahlt').reduce((a,x)=>a+jt(x.j),0);
+  const canSel=adm&&items.some(x=>!x.j.qid&&jst(x.j)==='schreiben');
+  const list=`<h2>Eingetragene Arbeiten</h2><div class="row"><select onchange="ui.xf.c=this.value;R()" aria-label="Kunde filtern"><option value="">Alle Kunden</option>${custOpts(xf.c)}</select>${adm?`<label class="pk"><input type="checkbox" ${xf.all?'checked':''} onchange="ui.xf.all=this.checked;R()"> auch abgerechnete zeigen</label>`:''}</div>`+(items.length?items.map(x=>extJob(x.e,x.j,adm,KS)).join(''):'<p class="empty">Keine Arbeiten.</p>')+`<div class="row sum"><span style="flex:1">Noch nicht abgerechnet</span>${nf(open)} €</div>`+(canSel?`<div class="box"><div class="row"><span id="xs_t" style="flex:1">Nichts ausgewählt</span><button class="ghost" onclick="xsAll()">Alle auswählen</button><button id="xs_b" onclick="mkKV()" disabled>Kostenvoranschlag erstellen</button></div><small>Jede Arbeit erscheint auch einzeln unter „Rechnungen“. Willst du mehrere Arbeiten eines Kunden zusammen abrechnen, hake sie an und erstelle einen Kostenvoranschlag (bei mehreren Kunden entsteht je Kunde einer).</small></div>`:'');
+  const drafts=!adm?'':KS.filter(k=>!k.confirmed&&db.ext.some(e=>e.id===k.eid)).map(k=>{const e=fe(k.eid),jj=e.jobs.filter(j=>j.qid===k.id);return `<div class="box"><div class="row"><strong>${esc(k.no)}</strong><span class="tag">Entwurf</span><strong>${esc(cn(e))}</strong><span style="flex:1"></span><strong>${nf(jj.reduce((a,j)=>a+jt(j),0))} €</strong></div>${jj.map(j=>`<div class="row"><span>${esc(j.what)} (${fmtD(j.date)})</span><span style="flex:1"></span>${nf(jt(j))} €<button class="x" onclick="rmKV('${e.id}','${j.id}')" aria-label="entfernen">×</button></div>`).join('')}<div class="row"><button onclick="okKV('${k.id}')">Bestätigen und abrechnen</button><button class="ghost" onclick="pdfKV('${k.id}')">Als PDF speichern</button></div></div>`}).join('');
+  const cpd=!adm?'':det('xp','Preise je Kunde (Sonderpreise)',`<div class="row"><select onchange="ui.xpc=this.value;R()" aria-label="Kunde"><option value="">Kunde wählen …</option>${custOpts(ui.xpc)}</select></div>`+(ui.xpc?(()=>{const e=db.ext.find(x=>x.cid===ui.xpc)||{prices:{}};return `<table>${db.prices.map(p=>{const v=kn(e,p),ind=e.prices[p.id]!=null&&e.prices[p.id]!==p.price;return `<tr><td>${esc(p.name)}</td><td class="n"><input class="pr ${ind?'ind':''}" value="${v==null?'':nf(v)}" placeholder="Preis" onchange="setCP('${ui.xpc}','${p.id}',this.value)" aria-label="Preis ${esc(p.name)}"> €/${p.unit}</td></tr>`}).join('')}</table>`})():'<p class="empty">Wähle einen Kunden, um Sonderpreise zu sehen oder zu ändern.</p>'));
+  return form+list+(drafts?`<h2>Kostenvoranschläge in Arbeit</h2>${drafts}`:'')+`<h2>Preise</h2>${base}${cpd}`;
  },
  ext(){ui.tt='ext';return V.tasks()},
  rec(){
@@ -740,12 +759,12 @@ const V={
   ]);
   sec(['ext'],'Arbeiten für Dritte',[
    'Du findest sie unter <strong>Arbeiten</strong> im Reiter <strong>Für Dritte</strong>'+(can('tasks')?'':' (ganz oben)')+'.',
-   'Mit <strong>Kunde aus der Liste öffnen</strong> oder <strong>+ Neuer Kunde</strong> legst du fest, für wen du arbeitest.',
-   'Beim Kunden: <strong>Neue Arbeit eintragen</strong>, beschreiben, was getan wurde, Datum wählen, bei den eingesetzten Maschinen oder bei Handarbeit die Stunden eintragen und <strong>Arbeit speichern</strong>. Der Preis ergibt sich aus der Preisliste.',
-   'Mit „Verschieben nach …“ hängst du eine Arbeit an einen anderen Kunden. Arbeiten erscheinen blau im Kalender.',
-   can('prices')?'Die Preisliste (Grundpreise) kannst du ändern und mit „+ Leistung hinzufügen“ ergänzen.':'Die Preisliste siehst du nur an. Ändern darf sie, wer das Recht „Preise ändern“ hat.',
-   can('inv')?'<strong>Preise dieses Kunden</strong> ändern, gilt nur für diesen Kunden und wird zur Sicherheit doppelt bestätigt.':'',
-   can('inv')?'Mehrere Arbeiten fasst du mit den Häkchen und <strong>Ausgewählte aufnehmen</strong> zu einem <strong>Kostenvoranschlag</strong> zusammen. Nach „Bestätigen“ ist er fest, du kannst ihn als PDF speichern. Jede Arbeit erscheint außerdem einzeln unter Rechnungen.':'Abgerechnet wird später von jemandem mit dem Recht „Rechnungen“. Sobald eine Arbeit verrechnet ist, siehst du sie hier nicht mehr.'
+   'Alles in einem Schritt: oben bei <strong>Neue Arbeit eintragen</strong> den <strong>Kunden wählen</strong> (oder mit „+ Neuer Kunde“ gleich anlegen, mit Telefon, E-Mail und Adresse), eintragen, was getan wurde, das Datum prüfen und dann Leistungen hinzufügen: Leistung wählen, Menge eintragen, „+ Leistung“. Unten steht die Summe, mit <strong>Arbeit speichern</strong> ist die Arbeit eingetragen.',
+   'Kunde und Datum bleiben nach dem Speichern stehen, so trägst du mehrere Arbeiten für denselben Kunden schnell hintereinander ein.',
+   'Darunter stehen alle <strong>eingetragenen Arbeiten</strong>, die neuesten zuerst. Mit dem Filter siehst du nur einen Kunden. Unter „Anderem Kunden zuordnen“ korrigierst du einen Fehler. Arbeiten erscheinen blau im Kalender.',
+   can('prices')?'Die <strong>Preisliste</strong> (Grundpreise) ganz unten kannst du ändern und mit „+ Leistung hinzufügen“ ergänzen. Eine Leistung ohne Preis lässt sich nicht einsetzen.':'Die Preisliste ganz unten siehst du nur an. Ändern darf sie, wer das Recht „Preise ändern“ hat.',
+   can('inv')?'<strong>Preise je Kunde</strong>: Kunden wählen und einzelne Preise überschreiben. Das gilt nur für diesen Kunden und wird zur Sicherheit doppelt bestätigt.':'',
+   can('inv')?'Jede Arbeit erscheint automatisch unter <strong>Rechnungen</strong>. Willst du mehrere Arbeiten zusammen abrechnen, hake sie an und wähle <strong>Kostenvoranschlag erstellen</strong>. Mit „Bestätigen und abrechnen“ geht er zu den Rechnungen, vorher kannst du ihn als PDF speichern.':'Abgerechnet wird später von jemandem mit dem Recht „Rechnungen“. Sobald eine Arbeit verrechnet ist, siehst du sie hier nicht mehr.'
   ]);
   sec(['inv'],'Rechnungen',[
    'Jede Rechnung durchläuft drei Stufen: <strong>Noch zu schreiben</strong> → mit „Rechnung geschrieben“ → <strong>Noch zu kassieren</strong> → mit „Als bezahlt markieren“ → <strong>Bezahlt</strong>. Mit den anderen Knöpfen gehst du einen Schritt zurück.',
