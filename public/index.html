@@ -6,7 +6,13 @@
 <meta name="robots" content="noindex, nofollow">
 <title>Hofplaner</title>
 <link rel="icon" type="image/png" href="/logo.png">
-<link rel="apple-touch-icon" href="/logo.png">
+<link rel="apple-touch-icon" href="/icon-180.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#2d5a3d">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Hofplaner">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <style>
 :root{--ink:#1f2a24;--bg:#f4f5ef;--card:#fff;--line:#d8dccf;--green:#2d5a3d;--red:#b3261e;--muted:#667068;box-sizing:border-box}
 *{box-sizing:inherit}
@@ -121,7 +127,7 @@ function seed(){
  add('Sirup','Stk',sy);
  return{tasks:[],events:[],products:fixProd(P),customers:[],orders:[],ocats:['Frischfleisch','Pakete','Hofladen (Abholung)'],...extSeed(),...newSeed()};
 }
-function emptyDb(){return{tasks:[],events:[],products:[],customers:[],orders:[],ocats:['Frischfleisch','Pakete','Hofladen (Abholung)'],settings:{invImg:true},prices:[],ext:[],kvs:[],recipes:[],mix:[],pf:[],pm:[]}}
+function emptyDb(){return{tasks:[],events:[],products:[],customers:[],orders:[],ocats:['Frischfleisch','Pakete','Hofladen (Abholung)'],settings:{invImg:true},prices:[],ext:[],kvs:[],recipes:[],mix:[],pf:[],pm:[],tpl:[]}}
 let db=emptyDb(),view='home',ui={d:newDraft(),f:{},of:'open'},me=null;
 const isAdmin=()=>!!me&&me.role==='admin';
 const can=k=>isAdmin()||!!(me&&me.perms&&me.perms[k]);
@@ -129,7 +135,7 @@ const VP={tasks:['tasks','ext'],cal:['cal'],orders:['orders'],products:['product
 function okView(v){const p=VP[v];if(p==='admin')return isAdmin();return !p||p.some(k=>can(k))}
 const DEFP={tasks:1,cal:1,orders:1,products:1,prices:0,customers:1,ext:1,recipes:1,mix:1,prod:1,inv:0};
 const PERM_L=[['tasks','Arbeiten (Hof und Betrieb)',''],['cal','Kalender',''],['orders','Bestellungen',''],['products','Produkte','Verfügbarkeit ändern, Produkte anlegen'],['prices','Preise ändern','Produktpreise und Preisliste für Dritte'],['customers','Kunden',''],['ext','Arbeiten für Dritte','eintragen, Preise nur ansehen'],['recipes','Rezepte',''],['mix','Mischpakete',''],['prod','Produktionslisten',''],['inv','Rechnungen','mit Kostenvoranschlägen und Kundenpreisen']];
-const ASECS=['tasks','events','products','customers','orders','ext','kvs','prices','recipes','pf','pm'];
+const ASECS=['tasks','events','products','customers','orders','ext','kvs','prices','recipes','pf','pm','tpl'];
 const MIXORD=['Rind','Hirsch','Reh','Truthahn','Schwein'];
 let synced=new Map(),seq=0,dirty=false,syncing=false,again=false,syncT=null,pendingR=false,stat='ok';
 async function api(path,body,method){
@@ -414,6 +420,17 @@ function addCat(){const c=prompt('Name der neuen Kategorie:');if(!c)return;const
 
 /* ---------- Kunden ---------- */
 function addCust(f){const n=f.name.value.trim();if(!n)return false;db.customers.push({id:uid(),name:n,email:f.email.value,tel:f.tel.value,adr:f.adr.value,note:f.note.value});ui.f.c=false;save();R();return false}
+function custHist(c){
+ const nm=c.name.trim().toLowerCase(),os=db.orders.filter(o=>o.name.trim().toLowerCase()===nm),e=db.ext.find(x=>x.cid===c.id),js=e?e.jobs:[];
+ const ost=o=>o.inv==='bezahlt'?'bezahlt':o.done?'erledigt, nicht bezahlt':'offen';
+ const open=os.filter(o=>o.done&&o.inv!=='bezahlt').reduce((a,o)=>a+sum(o.items),0)+js.filter(j=>{const k=db.kvs.find(q=>q.id===j.qid);return !(k&&k.paid)&&jst(j)!=='bezahlt'}).reduce((a,j)=>a+jt(j),0);
+ const tot=os.reduce((a,o)=>a+sum(o.items),0)+js.reduce((a,j)=>a+jt(j),0);
+ const b=`<p><strong>Offener Betrag: ${nf(open)} €</strong> · Gesamtumsatz: ${nf(tot)} €</p>`
+ +(os.length?`<h3>Bestellungen</h3><table>${os.map(o=>`<tr><td>${fmtD(o.date)}</td><td>${esc(o.items.map(i=>i.name).join(', '))}</td><td class="n">${nf(sum(o.items))} €</td><td>${ost(o)}${o.rno?' · '+esc(o.rno):''}</td></tr>`).join('')}</table>`:'')
+ +(js.length?`<h3>Arbeiten für Dritte</h3><table>${js.map(j=>{const k=db.kvs.find(q=>q.id===j.qid);return `<tr><td>${fmtD(j.date)}</td><td>${esc(j.what)}</td><td class="n">${nf(jt(j))} €</td><td>${k?esc(k.no)+' · ':''}${k&&k.paid?'bezahlt':esc(jst(j))}</td></tr>`}).join('')}</table>`:'')
+ +(!os.length&&!js.length?'<p class="empty">Noch keine Bestellungen oder Arbeiten.</p>':'');
+ return det('ch'+c.id,`Verlauf (${os.length} Bestellungen, ${js.length} Arbeiten) · offen ${nf(open)} €`,b);
+}
 function upC(id,k,v){db.customers.find(x=>x.id===id)[k]=v;save()}
 
 /* ---------- Bestellungen ---------- */
@@ -445,11 +462,14 @@ function addItem(){
 }
 function rmItem(i){readForm();ui.d.items.splice(i,1);R()}
 function addOCat(){const c=prompt('Neue Unterteilung:');if(!c)return;db.ocats.push(c);save();readForm();ui.d.cat=c;R()}
+function editO(id){const o=db.orders.find(x=>x.id===id);if(!o)return;ui.d={items:o.items.map(i=>({...i})),cat:o.cat,name:o.name,email:o.email||'',tel:o.tel||'',adr:o.adr||'',l:o.l||'',b:o.b||'',h:o.h||'',w:o.w||'',due:o.due||'',fertig:!!o.fertig};ui.oe=id;ui.f.o=true;R();scrollTo(0,0)}
+function cancelO(){ui.oe=null;ui.d=newDraft();ui.f.o=false;R()}
 function saveOrder(){
  readForm();const d=ui.d;
  if(!d.name.trim()||!d.items.length){alert('Name und mindestens ein Produkt sind nötig.');return}
  if(!db.customers.some(c=>c.name.toLowerCase()===d.name.trim().toLowerCase()))db.customers.push({id:uid(),name:d.name.trim(),email:d.email,tel:d.tel,adr:d.adr,note:''});
- db.orders.unshift({id:uid(),date:today(),...d,name:d.name.trim(),done:false,shipped:false});
+ if(ui.oe){const o=db.orders.find(x=>x.id===ui.oe);if(o){if(o.rno&&!confirm('Diese Bestellung hat schon die Rechnung '+o.rno+'. Änderungen gelten dann auch für die Rechnung. Trotzdem speichern?'))return;Object.assign(o,d,{name:d.name.trim(),items:d.items})}ui.oe=null}
+ else db.orders.unshift({id:uid(),date:today(),...d,name:d.name.trim(),done:false,shipped:false});
  ui.d=newDraft();ui.f.o=false;save();R();
 }
 const sum=items=>items.reduce((s,i)=>s+i.total,0);
@@ -510,6 +530,9 @@ const xjGet=()=>ui.xj||(ui.xj={cid:'',what:'',date:today(),lines:[]});
 function xjSync(){const x=xjGet(),w=$('#xj_w'),d=$('#xj_d');if(w)x.what=w.value;if(d&&d.value)x.date=d.value}
 function xjSet(k,v,r){if(r)xjSync();xjGet()[k]=v;if(r)R()}
 function xjUnit(){const p=db.prices.find(x=>x.id===$('#xj_s').value);$('#xj_u').textContent=p?p.unit:''}
+function tplApply(id){const t=db.tpl.find(q=>q.id===id);if(!t)return;xjSync();const x=xjGet();x.what=t.what;x.lines=t.lines.filter(l=>db.prices.some(p=>p.id===l.pid)).map(l=>({...l}));R()}
+function tplSave(){xjSync();const x=xjGet();if(!x.what.trim()||!x.lines.length){alert('Für eine Vorlage bitte erst „Was wurde getan?“ ausfüllen und mindestens eine Leistung hinzufügen.');return}const n=prompt('Name der Vorlage:',x.what.trim());if(!n||!n.trim())return;db.tpl.push({id:uid(),name:n.trim(),what:x.what.trim(),lines:x.lines.map(l=>({pid:l.pid,h:l.h}))});save();R()}
+function tplDel(id){const t=db.tpl.find(q=>q.id===id);if(!t||!confirm('Vorlage „'+t.name+'“ löschen?'))return;db.tpl=db.tpl.filter(q=>q.id!==id);save();R()}
 function xjAdd(){const x=xjGet(),pid=$('#xj_s').value,h=num($('#xj_h').value);if(!pid){alert('Bitte eine Leistung wählen.');return}if(!(h>0)){alert('Bitte die Menge eintragen.');return}xjSync();const l=x.lines.find(q=>q.pid===pid);if(l)l.h+=h;else x.lines.push({pid,h});R();setTimeout(()=>{const s=$('#xj_s');if(s)s.focus()},0)}
 function xjDel(i){xjSync();xjGet().lines.splice(i,1);R()}
 function addExtCust(f){
@@ -636,15 +659,16 @@ const V={
   `<p><small>Rot: Termine. Grün: Arbeiten (auch wiederkehrende). Blau: Arbeiten für Dritte. Orange: Bestellungen mit Abholung oder Lieferung. Termine erscheinen automatisch unter „Arbeiten“: ab 2 Wochen vorher mit mittlerer, 2 Tage vorher mit hoher Priorität.</small></p>`;
  },
  orders(){
+  if(!ui.f.o&&ui.oe){ui.oe=null;ui.d=newDraft()}
   const d=ui.d,av=db.products.filter(p=>p.avail==='ja'),cats=[...new Set(av.map(p=>p.cat))];
   const form=`<form onsubmit="return false"><div class="row"><input id="o_name" list="cl" placeholder="Name" value="${esc(d.name)}" onchange="suggest(this)"><datalist id="cl">${db.customers.map(c=>`<option value="${esc(c.name)}">`).join('')}</datalist><datalist id="cl_e">${db.customers.filter(c=>c.email).map(c=>`<option value="${esc(c.email)}">`).join('')}</datalist><input id="o_email" list="cl_e" placeholder="E-Mail" value="${esc(d.email)}" onchange="suggest(this)"><datalist id="cl_t">${db.customers.filter(c=>c.tel).map(c=>`<option value="${esc(c.tel)}">`).join('')}</datalist><input id="o_tel" list="cl_t" placeholder="Telefon" value="${esc(d.tel)}" onchange="suggest(this)"><input id="o_adr" placeholder="Adresse" value="${esc(d.adr)}" style="flex:1;min-width:12rem"><label class="fl">Abholung / Lieferung <input type="date" id="o_due" value="${esc(d.due||'')}"></label></div>`+
   `<div class="row"><select id="o_cat" onchange="readForm();R()">${db.ocats.map(c=>`<option ${c===d.cat?'selected':''}>${esc(c)}</option>`).join('')}</select><button type="button" class="ghost" onclick="addOCat()" aria-label="Unterteilung hinzufügen">+</button></div>`+
   (d.cat==='Pakete'?`<div class="row"><input id="o_l" size="5" placeholder="Länge cm" value="${esc(d.l)}"><input id="o_b" size="5" placeholder="Breite cm" value="${esc(d.b)}"><input id="o_h" size="5" placeholder="Höhe cm" value="${esc(d.h)}"><input id="o_w" size="5" placeholder="Gewicht kg" value="${esc(d.w)}"><label><input type="checkbox" id="o_f" ${d.fertig?'checked':''}> Paket ist fertig</label></div>`:'')+
   `<div class="row"><select id="o_prod" onchange="prodImg()">${cats.map(c=>`<optgroup label="${esc(c)}">${av.filter(p=>p.cat===c).map(p=>`<option value="${p.id}">${esc(p.name)} (${p.price==null?'auf Anfrage':nf(p.price)+' €/'+p.unit})</option>`).join('')}</optgroup>`).join('')}${mixOpts()}</select><span id="o_pw"></span><input id="o_qty" size="6" placeholder="kg / Stück"><input id="o_tot" size="8" placeholder="oder Gesamtpreis €"><button type="button" onclick="addItem()">Hinzufügen</button></div>`+
-  (d.items.length?itemsTable(d.items,true):'')+`<div class="row"><button type="button" onclick="saveOrder()">Bestellung speichern</button></div></form>`;
-  const n1=db.orders.filter(o=>!o.done).length,n2=db.orders.length-n1,list=db.orders.filter(o=>ui.of==='done'?o.done:!o.done).map(o=>`<div class="box ${o.done?'done-o':''}"><div class="row"><strong>${esc(o.name)}</strong><small>${esc(o.cat)}, ${fmtD(o.date)}</small><label class="fl">Abholung / Lieferung <input type="date" class="dt" value="${esc(o.due||'')}" onchange="setO('${o.id}','due',this.value)"></label><span style="flex:1"></span>${o.done?`<button class="ghost" onclick="doneO('${o.id}')">Wieder öffnen</button>`:`<button class="ghost" onclick="doneO('${o.id}')">Als erledigt markieren</button><button class="ghost" onclick="doneO('${o.id}',true)">Erledigt und bezahlt</button>`}<button class="x" onclick="del('o','${o.id}')" aria-label="löschen">×</button></div><small>${[o.email,o.tel,o.adr].filter(Boolean).map(esc).join(', ')}</small>`+
+  (d.items.length?itemsTable(d.items,true):'')+`<div class="row"><button type="button" onclick="saveOrder()">${ui.oe?'Änderungen speichern':'Bestellung speichern'}</button>${ui.oe?'<button type="button" class="ghost" onclick="cancelO()">Abbrechen</button>':''}</div></form>`;
+  const n1=db.orders.filter(o=>!o.done).length,n2=db.orders.length-n1,list=db.orders.filter(o=>ui.of==='done'?o.done:!o.done).map(o=>`<div class="box ${o.done?'done-o':''}"><div class="row"><strong>${esc(o.name)}</strong><small>${esc(o.cat)}, ${fmtD(o.date)}</small><label class="fl">Abholung / Lieferung <input type="date" class="dt" value="${esc(o.due||'')}" onchange="setO('${o.id}','due',this.value)"></label><span style="flex:1"></span>${o.done?`<button class="ghost" onclick="doneO('${o.id}')">Wieder öffnen</button>`:`<button class="ghost" onclick="doneO('${o.id}')">Als erledigt markieren</button><button class="ghost" onclick="doneO('${o.id}',true)">Erledigt und bezahlt</button>`}<button class="x" onclick="editO('${o.id}')" aria-label="bearbeiten" title="Bestellung bearbeiten">✎</button><button class="x" onclick="del('o','${o.id}')" aria-label="löschen">×</button></div><small>${[o.email,o.tel,o.adr].filter(Boolean).map(esc).join(', ')}</small>`+
    (o.cat==='Pakete'?`<small>Paket: ${esc(o.l)}×${esc(o.b)}×${esc(o.h)} cm, ${esc(o.w)} kg <label><input type="checkbox" ${o.fertig?'checked':''} onchange="setO('${o.id}','fertig',this.checked)"> fertig</label></small>`:'')+itemsTable(o.items)+`</div>`).join('');
-  return `<h1>Bestellungen</h1>${tb('o','+ Neue Bestellung')}${ui.f.o?`<h2>Neue Bestellung</h2>${form}`:''}<div class="row"><button class="${ui.of==='open'?'':'ghost'}" onclick="ui.of='open';R()">Offen (${n1})</button><button class="${ui.of==='done'?'':'ghost'}" onclick="ui.of='done';R()">Erledigt (${n2})</button></div>${list||'<p class="empty">Keine Bestellungen in dieser Liste.</p>'}`;
+  return `<h1>Bestellungen</h1>${tb('o','+ Neue Bestellung')}${ui.f.o?`<h2>${ui.oe?'Bestellung bearbeiten':'Neue Bestellung'}</h2>${form}`:''}<div class="row"><button class="${ui.of==='open'?'':'ghost'}" onclick="ui.of='open';R()">Offen (${n1})</button><button class="${ui.of==='done'?'':'ghost'}" onclick="ui.of='done';R()">Erledigt (${n2})</button></div>${list||'<p class="empty">Keine Bestellungen in dieser Liste.</p>'}`;
  },
  products(){
   const cats=[...new Set(db.products.map(p=>p.cat))],adm=isAdmin(),pe=can('prices'),q=(ui.pq||'').toLowerCase();
@@ -660,7 +684,7 @@ const V={
   const L=xj.lines.map((l,i)=>{const p=db.prices.find(q=>q.id===l.pid);return p?{i,l,p,pr:kn(tmp,p)}:null}).filter(Boolean),tot=L.reduce((a,x)=>a+x.l.h*(x.pr||0),0);
   const ok=ui.xok||'';ui.xok='';
   const xform=ui.f.xn?`<form onsubmit="return addExtCust(this)" class="box"><p style="margin-top:0"><small>Der Kunde kommt in die gemeinsame Kundenliste und steht dann auch bei Bestellungen zur Verfügung.</small></p><div class="row"><input name="name" placeholder="Name" required><input name="tel" placeholder="Telefon"><input name="email" placeholder="E-Mail"><input name="adr" placeholder="Adresse"></div><div class="row"><button>Kunde anlegen und übernehmen</button></div></form>`:'';
-  const form=`<div class="box"><h2 style="margin-top:0">Neue Arbeit eintragen</h2>${ok?`<p class="okmsg">✓ ${esc(ok)}</p>`:''}<div class="row"><select id="xj_c" onchange="xjSet('cid',this.value,1)" aria-label="Kunde" style="min-width:12rem"><option value="">Kunde wählen …</option>${custOpts(xj.cid)}</select><button class="ghost" onclick="tf('xn')">${ui.f.xn?'Schließen':'+ Neuer Kunde'}</button></div>${xform}${cu?`<small>${[cu.adr,cu.tel,cu.email].filter(Boolean).map(esc).join(' · ')||'Keine Kontaktdaten eingetragen'} (Kundendaten änderst du unter „Kunden“)</small>`:''}<div class="row"><input id="xj_w" value="${esc(xj.what)}" placeholder="Was wurde getan?" onchange="xjSet('what',this.value)" style="flex:1;min-width:12rem"><input type="date" id="xj_d" value="${xj.date}" onchange="xjSet('date',this.value)" aria-label="Datum"></div>${L.length?`<table>${L.map(x=>`<tr><td>${esc(x.p.name)}</td><td class="n">${x.pr==null?'<small>Preis fehlt</small>':`${nf(x.l.h)} ${x.p.unit} × ${nf(x.pr)} €`}</td><td class="n">${nf(x.l.h*(x.pr||0))} €</td><td><button class="x" onclick="xjDel(${x.i})" aria-label="entfernen">×</button></td></tr>`).join('')}</table>`:''}<div class="row"><select id="xj_s" onchange="xjUnit()" aria-label="Leistung" style="min-width:12rem"><option value="">Leistung wählen …</option>${svc}</select><input id="xj_h" size="5" inputmode="decimal" placeholder="Menge" aria-label="Menge" onkeydown="if(event.key==='Enter'){event.preventDefault();xjAdd()}"><span id="xj_u"></span><button class="ghost" onclick="xjAdd()">+ Leistung</button></div><div class="row"><strong style="flex:1">Summe ${nf(tot)} €</strong><button onclick="xjSave()">Arbeit speichern</button></div></div>`;
+  const form=`<div class="box"><h2 style="margin-top:0">Neue Arbeit eintragen</h2>${ok?`<p class="okmsg">✓ ${esc(ok)}</p>`:''}<div class="row"><select id="xj_c" onchange="xjSet('cid',this.value,1)" aria-label="Kunde" style="min-width:12rem"><option value="">Kunde wählen …</option>${custOpts(xj.cid)}</select><button class="ghost" onclick="tf('xn')">${ui.f.xn?'Schließen':'+ Neuer Kunde'}</button></div>${xform}${cu?`<small>${[cu.adr,cu.tel,cu.email].filter(Boolean).map(esc).join(' · ')||'Keine Kontaktdaten eingetragen'} (Kundendaten änderst du unter „Kunden“)</small>`:''}${db.tpl.length?`<div class="row"><select onchange="if(this.value)tplApply(this.value)" aria-label="Vorlage" style="min-width:12rem"><option value="">Vorlage einsetzen …</option>${db.tpl.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join('')}</select></div>`:''}<div class="row"><input id="xj_w" value="${esc(xj.what)}" placeholder="Was wurde getan?" onchange="xjSet('what',this.value)" style="flex:1;min-width:12rem"><input type="date" id="xj_d" value="${xj.date}" onchange="xjSet('date',this.value)" aria-label="Datum"></div>${L.length?`<table>${L.map(x=>`<tr><td>${esc(x.p.name)}</td><td class="n">${x.pr==null?'<small>Preis fehlt</small>':`${nf(x.l.h)} ${x.p.unit} × ${nf(x.pr)} €`}</td><td class="n">${nf(x.l.h*(x.pr||0))} €</td><td><button class="x" onclick="xjDel(${x.i})" aria-label="entfernen">×</button></td></tr>`).join('')}</table>`:''}<div class="row"><select id="xj_s" onchange="xjUnit()" aria-label="Leistung" style="min-width:12rem"><option value="">Leistung wählen …</option>${svc}</select><input id="xj_h" size="5" inputmode="decimal" placeholder="Menge" aria-label="Menge" onkeydown="if(event.key==='Enter'){event.preventDefault();xjAdd()}"><span id="xj_u"></span><button class="ghost" onclick="xjAdd()">+ Leistung</button></div><div class="row"><strong style="flex:1">Summe ${nf(tot)} €</strong><button class="ghost" onclick="tplSave()">Als Vorlage speichern</button><button onclick="xjSave()">Arbeit speichern</button></div>${db.tpl.length?`<small>Vorlagen: ${db.tpl.map(t=>`${esc(t.name)} <button class="x" onclick="tplDel('${t.id}')" aria-label="Vorlage löschen" title="Vorlage löschen">×</button>`).join(' · ')}</small>`:''}</div>`;
   // Liste
   const items=[];db.ext.forEach(e=>e.jobs.forEach(j=>{if(xf.c&&e.cid!==xf.c)return;const k=KS.find(q=>q.id===j.qid);let vis;if(!adm)vis=!j.qid&&jst(j)==='schreiben';else if(xf.all)vis=true;else vis=!(k&&k.confirmed)&&!(!j.qid&&jst(j)==='bezahlt');if(vis)items.push({e,j})}));
   items.sort((a,b)=>(b.j.date+b.j.id).localeCompare(a.j.date+a.j.id));
@@ -743,6 +767,7 @@ const V={
    'Bei „Pakete“ trägst du Länge, Breite, Höhe und Gewicht ein und hakst „Paket ist fertig“. Dann erscheint „Paket versenden“ ganz oben bei den Arbeiten.',
    'Produkt wählen, Menge (kg oder Stück) <em>oder</em> direkt den Gesamtpreis eintragen und <strong>Hinzufügen</strong>. Auch Mischpakete stehen zur Auswahl, sobald sie einen Preis haben. Zum Schluss <strong>Bestellung speichern</strong>.',
    'In der Liste („Offen“ / „Erledigt“) schließt du eine Bestellung mit <strong>Als erledigt markieren</strong> ab'+(can('inv')?'. Sie erscheint dann unter Rechnungen bei „Noch zu schreiben“. Mit <strong>Erledigt und bezahlt</strong> geht sie direkt zu „Bezahlt“.':'. Mit <strong>Erledigt und bezahlt</strong> gilt sie auch als bezahlt.'),
+   'Mit <strong>✎</strong> bei einer Bestellung änderst du sie nachträglich (Kunde, Produkte, Mengen, Datum).',
    'Das Abholdatum kannst du bei jeder Bestellung nachträglich ändern. „Wieder öffnen“ macht eine erledigte Bestellung wieder offen.'
   ]);
   sec(['products'],'Produkte',[
@@ -755,11 +780,13 @@ const V={
   ]);
   sec(['customers'],'Kunden',[
    '<strong>+ Neuer Kunde</strong> legt einen Kunden an. Name, E-Mail, Telefon, Adresse und Notiz kannst du direkt in der Liste ändern. Mit × löschst du einen Kunden.',
-   'Kunden aus Bestellungen werden automatisch angelegt.'
+   'Kunden aus Bestellungen werden automatisch angelegt.',
+   'Unter jedem Kunden öffnet <strong>Verlauf</strong> alle Bestellungen und Arbeiten für Dritte mit Status und dem <strong>offenen Betrag</strong>.'
   ]);
   sec(['ext'],'Arbeiten für Dritte',[
    'Du findest sie unter <strong>Arbeiten</strong> im Reiter <strong>Für Dritte</strong>'+(can('tasks')?'':' (ganz oben)')+'.',
    'Alles in einem Schritt: oben bei <strong>Neue Arbeit eintragen</strong> den <strong>Kunden wählen</strong> (oder mit „+ Neuer Kunde“ gleich anlegen, mit Telefon, E-Mail und Adresse), eintragen, was getan wurde, das Datum prüfen und dann Leistungen hinzufügen: Leistung wählen, Menge eintragen, „+ Leistung“. Unten steht die Summe, mit <strong>Arbeit speichern</strong> ist die Arbeit eingetragen.',
+   'Oft gleiche Arbeiten? Trage sie einmal ein und wähle <strong>Als Vorlage speichern</strong>. Später setzt „Vorlage einsetzen …“ Text und Leistungen mit einem Klick ein. Mit × unter dem Formular löschst du eine Vorlage.',
    'Kunde und Datum bleiben nach dem Speichern stehen, so trägst du mehrere Arbeiten für denselben Kunden schnell hintereinander ein.',
    'Darunter stehen alle <strong>eingetragenen Arbeiten</strong>, die neuesten zuerst. Mit dem Filter siehst du nur einen Kunden. Unter „Anderem Kunden zuordnen“ korrigierst du einen Fehler. Arbeiten erscheinen blau im Kalender.',
    can('prices')?'Die <strong>Preisliste</strong> (Grundpreise) ganz unten kannst du ändern und mit „+ Leistung hinzufügen“ ergänzen. Eine Leistung ohne Preis lässt sich nicht einsetzen.':'Die Preisliste ganz unten siehst du nur an. Ändern darf sie, wer das Recht „Preise ändern“ hat.',
@@ -824,7 +851,7 @@ const V={
  },
  customers(){
   return `<h1>Kunden</h1>${tb('c','+ Neuer Kunde')}${ui.f.c?`<form onsubmit="return addCust(this)"><div class="row"><input name="name" placeholder="Name" required><input name="email" placeholder="E-Mail"><input name="tel" placeholder="Telefon"><input name="adr" placeholder="Adresse"></div><div class="row"><input name="note" placeholder="Notiz" style="flex:1"><button>Kunde anlegen</button></div></form>`:''}`+
-  (db.customers.length?db.customers.map(c=>`<div class="box"><div class="row"><input value="${esc(c.name)}" onchange="upC('${c.id}','name',this.value)" aria-label="Name"><input value="${esc(c.email)}" placeholder="E-Mail" onchange="upC('${c.id}','email',this.value)"><input value="${esc(c.tel)}" placeholder="Telefon" onchange="upC('${c.id}','tel',this.value)"><input value="${esc(c.adr)}" placeholder="Adresse" onchange="upC('${c.id}','adr',this.value)"><span style="flex:1"></span><button class="x" onclick="del('c','${c.id}')" aria-label="löschen">×</button></div><input value="${esc(c.note)}" placeholder="Notiz" style="width:100%" onchange="upC('${c.id}','note',this.value)"></div>`).join(''):'<p class="empty">Noch keine Kunden.</p>');
+  (db.customers.length?db.customers.map(c=>`<div class="box"><div class="row"><input value="${esc(c.name)}" onchange="upC('${c.id}','name',this.value)" aria-label="Name"><input value="${esc(c.email)}" placeholder="E-Mail" onchange="upC('${c.id}','email',this.value)"><input value="${esc(c.tel)}" placeholder="Telefon" onchange="upC('${c.id}','tel',this.value)"><input value="${esc(c.adr)}" placeholder="Adresse" onchange="upC('${c.id}','adr',this.value)"><span style="flex:1"></span><button class="x" onclick="del('c','${c.id}')" aria-label="löschen">×</button></div><input value="${esc(c.note)}" placeholder="Notiz" style="width:100%" onchange="upC('${c.id}','note',this.value)">${custHist(c)}</div>`).join(''):'<p class="empty">Noch keine Kunden.</p>');
  }
 };
 const NAVG=[
@@ -846,6 +873,7 @@ function R(){
  $('#main').innerHTML=V[view]();if(view==='orders')prodImg();setStat(stat);
 }
 window.onafterprint=()=>{document.title='Hofplaner'};
+if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});
 boot();
 </script>
 </body>

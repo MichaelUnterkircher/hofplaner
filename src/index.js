@@ -1,8 +1,8 @@
 // Hofplaner: Anmeldung, Rollen und gemeinsame Daten (Cloudflare Worker + D1)
-const SECS = ['tasks','events','products','customers','orders','ext','kvs','prices','recipes','pf','pm','mix','meta'];
+const SECS = ['tasks','events','products','customers','orders','ext','kvs','prices','recipes','pf','pm','mix','tpl','meta'];
 const PERMS = ['tasks','cal','orders','products','prices','customers','ext','recipes','mix','prod','inv'];
 const DEFAULT_PERMS = { tasks:1, cal:1, orders:1, products:1, prices:0, customers:1, ext:1, recipes:1, mix:1, prod:1, inv:0 };
-const READ = { tasks:['tasks'], events:['cal'], customers:['customers','orders','ext','inv'], orders:['orders','inv'], ext:['ext','inv'], prices:['ext','prices','inv'], kvs:['inv'], recipes:['recipes'], mix:['mix','orders'], pf:['prod'], pm:['prod'] };
+const READ = { tasks:['tasks'], events:['cal'], customers:['customers','orders','ext','inv'], orders:['orders','inv'], ext:['ext','inv'], prices:['ext','prices','inv'], kvs:['inv'], recipes:['recipes'], mix:['mix','orders'], pf:['prod'], pm:['prod'], tpl:['ext'] };
 const WRITE = { ...READ, products:['products'], prices:['prices'], mix:['mix'] };
 function getPerms(role, raw) {
   const p = {};
